@@ -1,0 +1,16 @@
+// classID{1}: GameObject <- EditorExtension <- Object
+GameObject Base // ByteSize{ffffffff}, Index{0}, IsArray{0}, MetaFlag{8000}
+  vector m_Component // ByteSize{ffffffff}, Index{1}, IsArray{0}, MetaFlag{8041}
+    Array Array // ByteSize{ffffffff}, Index{2}, IsArray{1}, MetaFlag{4041}
+      int size // ByteSize{4}, Index{3}, IsArray{0}, MetaFlag{41}
+      ComponentPair data // ByteSize{c}, Index{4}, IsArray{0}, MetaFlag{41}
+        PPtr<Component> component // ByteSize{c}, Index{5}, IsArray{0}, MetaFlag{41}
+          int m_FileID // ByteSize{4}, Index{6}, IsArray{0}, MetaFlag{41}
+          SInt64 m_PathID // ByteSize{8}, Index{7}, IsArray{0}, MetaFlag{41}
+  unsigned int m_Layer // ByteSize{4}, Index{8}, IsArray{0}, MetaFlag{0}
+  string m_Name // ByteSize{ffffffff}, Index{9}, IsArray{0}, MetaFlag{8000}
+    Array Array // ByteSize{ffffffff}, Index{a}, IsArray{1}, MetaFlag{4001}
+      int size // ByteSize{4}, Index{b}, IsArray{0}, MetaFlag{1}
+      char data // ByteSize{1}, Index{c}, IsArray{0}, MetaFlag{1}
+  UInt16 m_Tag // ByteSize{2}, Index{d}, IsArray{0}, MetaFlag{0}
+  bool m_IsActive // ByteSize{1}, Index{e}, IsArray{0}, MetaFlag{0}
