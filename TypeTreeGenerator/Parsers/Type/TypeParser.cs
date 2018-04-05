@@ -105,7 +105,7 @@ namespace TypeTreeGenerator
 					char space = m_reader.ReadChar();
 					if (space != ' ')
 					{
-						throw CreateException($"Invalid indent");
+						throw CreateException("Invalid indent");
 					}
 				}
 			}
@@ -133,7 +133,7 @@ namespace TypeTreeGenerator
 					char space = m_reader.ReadChar();
 					if (space != ' ')
 					{
-						throw CreateException($"Invlid intent");
+						throw CreateException("Invlid intent");
 					}
 				}
 
@@ -185,59 +185,63 @@ namespace TypeTreeGenerator
 
 		private string GetTypeDefinitionName()
 		{
-			if(TypeName == "vector")
+			switch (TypeName)
 			{
-				TypeParser arrayType = GetArrayType();
-				return $"{arrayType.GetTypeDefinitionName()}[]";
-			}
-			if(TypeName == "map")
-			{
-				TypeParser pair = GetArrayType();
-				if(pair.TypeName != "pair")
+				case "vector":
 				{
-					throw new Exception($"Pair has unsupported type {pair.TypeName}");
+					TypeParser arrayType = GetArrayType();
+					return arrayType.GetTypeDefinitionName();
+					//return $"{arrayType.GetTypeDefinitionName()}[]";
 				}
-				if (pair.Children.Count != 2)
+				case "map":
 				{
-					throw new Exception($"Pair contains {pair.Children.Count} children");
-				}
+					TypeParser pair = GetArrayType();
+					if(pair.TypeName != "pair")
+					{
+						throw new Exception($"Pair has unsupported type {pair.TypeName}");
+					}
+					if (pair.Children.Count != 2)
+					{
+						throw new Exception($"Pair contains {pair.Children.Count} children");
+					}
 
-				TypeParser first = pair.Children[0];
-				if(first.VarName != "first")
-				{
-					throw new Exception($"First has unsupported name {first.VarName}");
+					TypeParser first = pair.Children[0];
+					if(first.VarName != "first")
+					{
+						throw new Exception($"First has unsupported name {first.VarName}");
+					}
+					TypeParser second = pair.Children[1];
+					if (second.VarName != "second")
+					{
+						throw new Exception($"Second has unsupported name {second.VarName}");
+					}
+					return $"map<{first.GetTypeDefinitionName()}, {second.GetTypeDefinitionName()}>";
 				}
-				TypeParser second = pair.Children[1];
-				if (second.VarName != "second")
+				case "pair":
 				{
-					throw new Exception($"Second has unsupported name {second.VarName}");
+					if (VarName != "data")
+					{
+						throw new Exception($"Pair has unsupported type {VarName}");
+					}
+					if (Children.Count != 2)
+					{
+						throw new Exception($"Pair contains {Children.Count} children");
+					}
+					TypeParser first = Children[0];
+					if (first.VarName != "first")
+					{
+						throw new Exception($"First has unsupported name {first.VarName}");
+					}
+					TypeParser second = Children[1];
+					if (second.VarName != "second")
+					{
+						throw new Exception($"Second has unsupported name {second.VarName}");
+					}
+					return $"pair<{first.GetTypeDefinitionName()}, {second.GetTypeDefinitionName()}>";
 				}
-				return $"map<{first.GetTypeDefinitionName()}, {second.GetTypeDefinitionName()}>";
+				default:
+					return TypeName;
 			}
-			if(TypeName == "pair")
-			{
-				if (VarName != "data")
-				{
-					throw new Exception($"Pair has unsupported type {VarName}");
-				}
-				if (Children.Count != 2)
-				{
-					throw new Exception($"Pair contains {Children.Count} children");
-				}
-				TypeParser first = Children[0];
-				if (first.VarName != "first")
-				{
-					throw new Exception($"First has unsupported name {first.VarName}");
-				}
-				TypeParser second = Children[1];
-				if (second.VarName != "second")
-				{
-					throw new Exception($"Second has unsupported name {second.VarName}");
-				}
-				return $"pair<{first.GetTypeDefinitionName()}, {second.GetTypeDefinitionName()}>";
-			}
-
-			return TypeName;
 		}
 
 		private TypeParser GetArrayType()

@@ -25,7 +25,7 @@ namespace TypeTreeGenerator
 			bool isFound = FindWord();
 			if (!isFound)
 			{
-				throw CreateException($"Can't find character for reading");
+				throw CreateException("Can\'t find character for reading");
 			}
 
 			char c = m_reader.ReadChar();
@@ -40,7 +40,7 @@ namespace TypeTreeGenerator
 			bool isFound = FindWord();
 			if (!isFound)
 			{
-				throw CreateException($"Can't find word for reading");
+				throw CreateException("Can\'t find word for reading");
 			}
 
 			string word = ReadWord();

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace TypeTreeGenerator
 {
@@ -20,27 +21,12 @@ namespace TypeTreeGenerator
 		{
 			ExportUsings(writer, root);
 
-			if(this == root)
-			{
-				writer.WriteLine($"namespace UtinyRipper.Classes");
-			}
-			else
-			{
-				writer.WriteLine($"namespace UtinyRipper.Classes.{root.Name}s");
-			}
+			writer.WriteLine(this == root ? "namespace UtinyRipper.Classes" : $"namespace UtinyRipper.Classes.{root.Name}s");
 			writer.WriteLine('{');
 			if(this == root)
 			{
-				if (BaseName == string.Empty)
-				{
-					writer.WriteIndent(1).WriteLine($"public sealed class {Name}");
-				}
-				else
-				{
-					writer.WriteIndent(1).WriteLine($"public sealed class {Name} : {BaseName}");
-				}
+				writer.WriteIndent(1).WriteLine($"public sealed class {Name} : {BaseName}");
 				writer.WriteIndent(1).WriteLine('{');
-				
 				writer.WriteIndent(2).WriteLine($"public {Name}(AssetInfo assetInfo):");
 				writer.WriteIndent(3).WriteLine("base(assetInfo)");
 				writer.WriteIndent(2).WriteLine('{');
@@ -76,6 +62,7 @@ namespace TypeTreeGenerator
 			writer.WriteIndent(2).WriteLine('}');
 			writer.WriteLine();
 			
+			ExportFetchDependencies(writer, root);
 			ExportYAMLExport(writer, root);
 
 			ExportProperties(writer);
@@ -88,16 +75,20 @@ namespace TypeTreeGenerator
 
 		private void ExportUsings(TextWriter writer, TypeDefinition root)
 		{
-			if (Fields.Any(t => t.IsArray))
+			if (Fields.Any(t => t.IsArray) || IsContainsDependencies)
 			{
-				writer.WriteLine($"using System.Collections.Generic;");
+				writer.WriteLine("using System.Collections.Generic;");
 			}
-			writer.WriteLine($"using UtinyRipper.AssetExporters;");
+			writer.WriteLine("using UtinyRipper.AssetExporters;");
 			if(this == root)
 			{
 				writer.WriteLine($"using UtinyRipper.Classes.{root.Name}s;");
 			}
-			writer.WriteLine($"using UtinyRipper.Exporter.YAML;");
+			writer.WriteLine("using UtinyRipper.Exporter.YAML;");
+			if (IsContainsDependencies)
+			{
+				writer.WriteLine("using UtinyRipper.SerializedFiles;");
+			}
 			writer.WriteLine();
 		}
 
@@ -109,33 +100,59 @@ namespace TypeTreeGenerator
 				if (field.IsArray)
 				{
 					writer.Write($"{field.ExportFieldName} = ");
-					if(field.Type.IsBasic)
-					{
-						writer.WriteLine($"stream.Read{field.Type.ToBaseType.ToExportNETType()}Array();");
-					}
-					else
-					{
-						writer.WriteLine($"stream.ReadArray<{field.TypeExportName}>();");
-					}
+					writer.WriteLine(field.Type.IsBasic ?
+						$"stream.Read{field.Type.ToBaseType.ToExportNETType()}Array();" :
+						$"stream.ReadArray<{field.TypeExportName}>();");
 				}
 				else
 				{
-					if (field.Type.IsBasic)
-					{
-						writer.WriteLine($"{field.ExportPropertyName} = stream.Read{field.Type.ToBaseType.ToExportNETType()}();");
-					}
-					else
-					{
-						writer.WriteLine($"{field.ExportPropertyName}.Read(stream);");
-					}
+					writer.WriteLine(field.Type.IsBasic ?
+						$"{field.ExportPropertyName} = stream.Read{field.Type.ToBaseType.ToExportNETType()}();" :
+						$"{field.ExportPropertyName}.Read(stream);");
 				}
 
 				if(field.IsAlign)
 				{
-					writer.WriteIndent(3).WriteLine($"stream.AlignStream(AlignType.Align4);");
+					writer.WriteIndent(3).WriteLine("stream.AlignStream(AlignType.Align4);");
 					writer.WriteIndent(3).WriteLine();
 				}
 			}
+		}
+
+		private void ExportFetchDependencies(TextWriter writer, TypeDefinition root)
+		{
+			if (!IsContainsDependencies)
+			{
+				return;
+			}
+
+			bool isRoot = this == root;
+			string over = isRoot ? "override " : string.Empty;
+			writer.WriteIndent(2).WriteLine($"public {over}IEnumerable<Object> FetchDependencies(ISerializedFile file, bool isLog = false)");
+			writer.WriteIndent(2).WriteLine('{');
+			if (isRoot)
+			{
+				writer.WriteIndent(3).WriteLine("foreach(Object @object in base.FetchDependencies(file, isLog))");
+				writer.WriteIndent(3).WriteLine("{");
+				writer.WriteIndent(4).WriteLine("yield return @object;");
+				writer.WriteIndent(3).WriteLine("}");
+				writer.WriteLine();
+			}
+
+			foreach (FieldDefinition field in Fields)
+			{
+				if (!field.Type.IsPointer)
+				{
+					continue;
+				}
+
+				string logFunc = isRoot ? "ToLogString" : $"() => nameof({Name})";
+				writer.WriteIndent(3).WriteLine($"yield return {field.ExportPropertyName}.FetchDependency(file, isLog, {logFunc}, \"{field.Name}\");");
+			}
+
+			writer.WriteIndent(2).WriteLine("}");
+			writer.WriteLine();
+
 		}
 
 		private void ExportYAMLExport(TextWriter writer, TypeDefinition root)
@@ -163,14 +180,9 @@ namespace TypeTreeGenerator
 				}
 				else
 				{
-					if (field.Type.IsBasic)
-					{
-						writer.WriteLine($"{field.ExportPropertyName});");
-					}
-					else
-					{
-						writer.WriteLine($"{field.ExportPropertyName}.ExportYAML(exporter));");
-					}
+					writer.WriteLine(field.Type.IsBasic ?
+						$"{field.ExportPropertyName});" :
+						$"{field.ExportPropertyName}.ExportYAML(exporter));");
 				}
 			}
 			writer.WriteIndent(3).WriteLine("return node;");
@@ -195,14 +207,10 @@ namespace TypeTreeGenerator
 					writer.WriteLine();
 					wrote = true;
 				}
-				if (field.IsArray)
-				{
-					writer.WriteIndent(2).WriteLine($"public IReadOnlyList<{field.TypeExportName}> {field.ExportPropertyName} => {field.ExportFieldName};");
-				}
-				else
-				{
-					writer.WriteIndent(2).WriteLine($"public {field.TypeExportName} {field.ExportPropertyName} {{ get; private set; }}");
-				}
+
+				writer.WriteIndent(2).WriteLine(field.IsArray ?
+					$"public IReadOnlyList<{field.TypeExportName}> {field.ExportPropertyName} => {field.ExportFieldName};" :
+					$"public {field.TypeExportName} {field.ExportPropertyName} {{ get; private set; }}");
 			}
 		}
 
@@ -249,23 +257,41 @@ namespace TypeTreeGenerator
 			}
 		}
 
-		private string GetTypeName(string name)
-		{
-			if(Enum.TryParse(name, out BaseType type))
-			{
-				return type.ToExportType();
-			}
-			return name;
-		}
-
-		public bool IsBasic => Enum.TryParse(Name, out BaseType type);
+		public bool IsBasic => Enum.TryParse(TypeName, out BaseType _);
 
 		public string BaseName { get; set; }
 		public string Name { get; set; }
 		public List<FieldDefinition> Fields { get; } = new List<FieldDefinition>();
 		public bool IsInner { get; set; }
 
-		public string ExportName => GetTypeName(Name);
+		public string ExportName => ExportTypeName;
 		public BaseType ToBaseType => (BaseType)Enum.Parse(typeof(BaseType), Name);
+
+		private string TypeName => /*IsArray ? Fields[0].Type.Name : */Name;
+		private string ExportTypeName
+		{
+			get
+			{
+				if(Enum.TryParse(TypeName, out BaseType type))
+				{
+					//if (IsArray)
+					{
+						//return $"{type.ToExportType()}[]";
+					}
+					//else
+					{
+						return type.ToExportType();
+					}
+				}
+				return Name;
+			}
+		}
+
+		//private bool IsArray => s_arrayRegex.IsMatch(Name);
+		private bool IsPointer => s_pointeRegex.IsMatch(Name);
+		private bool IsContainsDependencies => Fields.Any(t => t.Type.IsPointer || t.Type.IsContainsDependencies);
+		
+		//private static readonly Regex s_arrayRegex = new Regex(@"[\w\<\>_]\[\]*>");
+		private static readonly Regex s_pointeRegex = new Regex(@"PPtr<[\w\<\>_]*>");
 	}
 }
