@@ -11,9 +11,28 @@
 			return $"{Type} {Name}";
 		}
 
+		private static string GetVariableName(string name)
+		{
+			if (name.StartsWith("m_"))
+			{
+				name = name.Substring(2);
+			}
 
+			if (!char.IsLower(name[0]))
+			{
+				char firstLetter = char.ToLower(name[0]);
+				string part = name.Substring(1);
+				name = $"{firstLetter}{part}";
+			}
+			if (name[name.Length - 1] == 's')
+			{
+				name = name.Substring(0, name.Length - 1);
+			}
 
-		private string GetPropertyName(string name)
+			return name;
+		}
+
+		private static string GetPropertyName(string name)
 		{
 			if (name.StartsWith("m_"))
 			{
@@ -32,7 +51,7 @@
 			}
 		}
 
-		private string GetFieldName(string name)
+		private static string GetFieldName(string name)
 		{
 			if (char.IsUpper(name[0]))
 			{
@@ -61,17 +80,8 @@
 		public bool IsArray { get; set; }
 		public bool IsAlign { get; set; }
 
-		public string TypeExportName
-		{
-			get
-			{
-				if(IsArray)
-				{
-					return Type.Fields[0].TypeExportName;
-				}
-				return Type.ExportName;
-			}
-		}
+		public string TypeExportName => Type.ExportName;
+		public string ExportVariableName => GetVariableName(Name);
 		public string ExportFieldName => GetFieldName(Name);
 		public string ExportPropertyName => GetPropertyName(Name);
 	}

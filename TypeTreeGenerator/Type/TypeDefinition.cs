@@ -41,8 +41,16 @@ namespace TypeTreeGenerator
 
 			writer.WriteIndent(2).WriteLine("/*private static int GetSerializedVersion(Version version)");
 			writer.WriteIndent(2).WriteLine('{');
-			writer.WriteLine("#warning TODO: serialized version acording to read version (current 2017.3.0f3)");
-			writer.WriteIndent(3).WriteLine("return 2;");
+			writer.WriteIndent(3).WriteLine("if (Config.IsExportTopmostSerializedVersion)");
+			writer.WriteIndent(3).WriteLine('{');
+			writer.WriteIndent(4).WriteLine("return 2;");
+			writer.WriteIndent(3).WriteLine('}');
+			writer.WriteLine();
+			writer.WriteIndent(3).WriteLine("if (version.IsGreaterEqual())");
+			writer.WriteIndent(3).WriteLine('{');
+			writer.WriteIndent(4).WriteLine("return 2;");
+			writer.WriteIndent(3).WriteLine('}');
+			writer.WriteIndent(3).WriteLine("return 1;");
 			writer.WriteIndent(2).WriteLine("}*/");
 			writer.WriteLine();
 
@@ -133,9 +141,9 @@ namespace TypeTreeGenerator
 			if (isRoot)
 			{
 				writer.WriteIndent(3).WriteLine("foreach(Object @object in base.FetchDependencies(file, isLog))");
-				writer.WriteIndent(3).WriteLine("{");
+				writer.WriteIndent(3).WriteLine('{');
 				writer.WriteIndent(4).WriteLine("yield return @object;");
-				writer.WriteIndent(3).WriteLine("}");
+				writer.WriteIndent(3).WriteLine('}');
 				writer.WriteLine();
 			}
 
@@ -147,7 +155,17 @@ namespace TypeTreeGenerator
 				}
 
 				string logFunc = isRoot ? "ToLogString" : $"() => nameof({Name})";
-				writer.WriteIndent(3).WriteLine($"yield return {field.ExportPropertyName}.FetchDependency(file, isLog, {logFunc}, \"{field.Name}\");");
+				if (field.IsArray)
+				{
+					writer.WriteIndent(3).WriteLine($"foreach ({field.TypeExportName} {field.ExportVariableName} in {field.ExportPropertyName})");
+					writer.WriteIndent(3).WriteLine('{');
+					writer.WriteIndent(4).WriteLine($"yield return {field.ExportVariableName}.FetchDependency(file, isLog, {logFunc}, \"{field.Name}\");");	
+					writer.WriteIndent(3).WriteLine('}');
+				}
+				else
+				{
+					writer.WriteIndent(3).WriteLine($"yield return {field.ExportPropertyName}.FetchDependency(file, isLog, {logFunc}, \"{field.Name}\");");	
+				}
 			}
 
 			writer.WriteIndent(2).WriteLine("}");
@@ -161,6 +179,7 @@ namespace TypeTreeGenerator
 			{
 				writer.WriteIndent(2).WriteLine("protected override YAMLMappingNode ExportYAMLRoot(IAssetsExporter exporter)");
 				writer.WriteIndent(2).WriteLine('{');
+				writer.WriteLine("#warning TODO: values acording to read version (current 2017.3.0f3)");
 				writer.WriteIndent(3).WriteLine("YAMLMappingNode node = base.ExportYAMLRoot(exporter);");
 			}
 			else
