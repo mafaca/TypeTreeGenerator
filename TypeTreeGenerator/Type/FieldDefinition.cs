@@ -13,6 +13,7 @@
 
 		private static string GetVariableName(string name)
 		{
+			name = name.Replace(" ", string.Empty);
 			if (name.StartsWith("m_"))
 			{
 				name = name.Substring(2);
@@ -34,6 +35,7 @@
 
 		private static string GetPropertyName(string name)
 		{
+			name = name.Replace(" ", string.Empty);
 			if (name.StartsWith("m_"))
 			{
 				name = name.Substring(2);
@@ -53,6 +55,7 @@
 
 		private static string GetFieldName(string name)
 		{
+			name = name.Replace(" ", string.Empty);
 			if (char.IsUpper(name[0]))
 			{
 				char firstLetter = char.ToLower(name[0]);

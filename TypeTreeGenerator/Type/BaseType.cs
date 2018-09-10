@@ -5,6 +5,7 @@ namespace TypeTreeGenerator
 	public enum BaseType
 	{
 		@bool,
+		@char,
 		UInt8,
 		SInt16,
 		UInt16,
@@ -13,6 +14,7 @@ namespace TypeTreeGenerator
 		SInt64,
 		UInt64,
 		@float,
+		@string,
 	}
 
 	public static class BaseTypeExtensions
@@ -23,6 +25,8 @@ namespace TypeTreeGenerator
 			{
 				case BaseType.@bool:
 					return "bool";
+				case BaseType.@char:
+					return "char";
 				case BaseType.UInt8:
 					return "byte";
 				case BaseType.SInt16:
@@ -39,6 +43,8 @@ namespace TypeTreeGenerator
 					return "ulong";
 				case BaseType.@float:
 					return "float";
+				case BaseType.@string:
+					return "string";
 
 				default:
 					throw new NotSupportedException(_this.ToString());
@@ -51,6 +57,8 @@ namespace TypeTreeGenerator
 			{
 				case BaseType.@bool:
 					return "Boolean";
+				case BaseType.@char:
+					return "Char";
 				case BaseType.UInt8:
 					return "Byte";
 				case BaseType.SInt16:
@@ -67,6 +75,8 @@ namespace TypeTreeGenerator
 					return "UInt64";
 				case BaseType.@float:
 					return "Single";
+				case BaseType.@string:
+					return "String";
 
 				default:
 					throw new NotSupportedException(_this.ToString());

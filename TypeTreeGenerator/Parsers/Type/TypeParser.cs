@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace TypeTreeGenerator
 {
@@ -19,12 +20,27 @@ namespace TypeTreeGenerator
 
 			ReadType();
 
-			VarName = FindReadWord();
-			if(VarName == string.Empty)
+			VarName = string.Empty;
+			FindWord();
+			StringBuilder sb = new StringBuilder();
+			while (true)
+			{
+				char symb = (char)m_reader.PeekChar();
+				if(symb == '/')
+				{
+					while(sb[sb.Length - 1] == ' ')
+					{
+						sb.Length--;
+					}
+					break;
+				}
+				sb.Append(m_reader.ReadChar());
+			}
+			VarName = sb.ToString();
+			if (VarName == string.Empty)
 			{
 				throw CreateException("Can't find variable name");
 			}
-
 			FindValidateWord("//");
 
 			vreader.Parse("ByteSize");
@@ -257,27 +273,27 @@ namespace TypeTreeGenerator
 			}
 			if (array.TypeName != "Array")
 			{
-				throw new Exception($"Array has unsupported type {array.TypeName}");
+				throw new Exception($"Unsupported array's type {array.TypeName}");
 			}
 			if (array.VarName != "Array")
 			{
-				throw new Exception($"Array has unsupported name {array.VarName}");
+				throw new Exception($"Unsupported array's name {array.VarName}");
 			}
 
 			TypeParser size = array.Children[0];
 			if(size.TypeName != nameof(BaseType.@int))
 			{
-				throw new Exception($"Size has unsupported type {size.TypeName}");
+				throw new Exception($"Unsupported size's type {size.TypeName}");
 			}
 			if (size.VarName != "size")
 			{
-				throw new Exception($"Size has unsupported name {size.VarName}");
+				throw new Exception($"Unsupported size's name {size.VarName}");
 			}
 
 			TypeParser data = array.Children[1];
 			if (data.VarName != "data")
 			{
-				throw new Exception($"Data has unsupported name {data.VarName}");
+				throw new Exception($"Unsupported data's name {data.VarName}");
 			}
 			return data;
 		}

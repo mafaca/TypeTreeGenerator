@@ -56,14 +56,14 @@ namespace TypeTreeGenerator
 
 			if(this == root)
 			{
-				writer.WriteIndent(2).WriteLine("public override void Read(AssetStream stream)");
+				writer.WriteIndent(2).WriteLine("public override void Read(AssetReader reader)");
 				writer.WriteIndent(2).WriteLine('{');
-				writer.WriteIndent(3).WriteLine("base.Read(stream);");
+				writer.WriteIndent(3).WriteLine("base.Read(reader);");
 				writer.WriteLine();
 			}
 			else
 			{
-				writer.WriteIndent(2).WriteLine("public void Read(AssetStream stream)");
+				writer.WriteIndent(2).WriteLine("public void Read(AssetReader reader)");
 				writer.WriteIndent(2).WriteLine('{');
 			}
 			ExportReading(writer);
@@ -109,19 +109,19 @@ namespace TypeTreeGenerator
 				{
 					writer.Write($"{field.ExportFieldName} = ");
 					writer.WriteLine(field.Type.IsBasic ?
-						$"stream.Read{field.Type.ToBaseType.ToExportNETType()}Array();" :
-						$"stream.ReadArray<{field.TypeExportName}>();");
+						$"reader.Read{field.Type.ToBaseType.ToExportNETType()}Array();" :
+						$"reader.ReadArray<{field.TypeExportName}>();");
 				}
 				else
 				{
 					writer.WriteLine(field.Type.IsBasic ?
-						$"{field.ExportPropertyName} = stream.Read{field.Type.ToBaseType.ToExportNETType()}();" :
-						$"{field.ExportPropertyName}.Read(stream);");
+						$"{field.ExportPropertyName} = reader.Read{field.Type.ToBaseType.ToExportNETType()}();" :
+						$"{field.ExportPropertyName}.Read(reader);");
 				}
 
 				if(field.IsAlign)
 				{
-					writer.WriteIndent(3).WriteLine("stream.AlignStream(AlignType.Align4);");
+					writer.WriteIndent(3).WriteLine("reader.AlignStream(AlignType.Align4);");
 					writer.WriteIndent(3).WriteLine();
 				}
 			}
@@ -140,9 +140,9 @@ namespace TypeTreeGenerator
 			writer.WriteIndent(2).WriteLine('{');
 			if (isRoot)
 			{
-				writer.WriteIndent(3).WriteLine("foreach(Object @object in base.FetchDependencies(file, isLog))");
+				writer.WriteIndent(3).WriteLine("foreach(Object asset in base.FetchDependencies(file, isLog))");
 				writer.WriteIndent(3).WriteLine('{');
-				writer.WriteIndent(4).WriteLine("yield return @object;");
+				writer.WriteIndent(4).WriteLine("yield return asset;");
 				writer.WriteIndent(3).WriteLine('}');
 				writer.WriteLine();
 			}
@@ -177,31 +177,31 @@ namespace TypeTreeGenerator
 		{
 			if(this == root)
 			{
-				writer.WriteIndent(2).WriteLine("protected override YAMLMappingNode ExportYAMLRoot(IAssetsExporter exporter)");
+				writer.WriteIndent(2).WriteLine("protected override YAMLMappingNode ExportYAMLRoot(IExportContainer container)");
 				writer.WriteIndent(2).WriteLine('{');
 				writer.WriteLine("#warning TODO: values acording to read version (current 2017.3.0f3)");
-				writer.WriteIndent(3).WriteLine("YAMLMappingNode node = base.ExportYAMLRoot(exporter);");
+				writer.WriteIndent(3).WriteLine("YAMLMappingNode node = base.ExportYAMLRoot(container);");
 			}
 			else
 			{
-				writer.WriteIndent(2).WriteLine("public YAMLNode ExportYAML(IAssetsExporter exporter)");
+				writer.WriteIndent(2).WriteLine("public YAMLNode ExportYAML(IExportContainer container)");
 				writer.WriteIndent(2).WriteLine('{');
 				writer.WriteIndent(3).WriteLine("YAMLMappingNode node = new YAMLMappingNode();");
 			}
-			writer.WriteIndent(3).WriteLine("//node.AddSerializedVersion(GetSerializedVersion(exporter.Version));");
+			writer.WriteIndent(3).WriteLine("//node.AddSerializedVersion(GetSerializedVersion(container.Version));");
 
 			foreach (FieldDefinition field in Fields)
 			{
 				writer.WriteIndent(3).Write($"node.Add(\"{field.Name}\", ");
 				if (field.IsArray)
 				{
-					writer.WriteLine($"{field.ExportPropertyName}.ExportYAML(exporter));");
+					writer.WriteLine($"{field.ExportPropertyName}.ExportYAML(container));");
 				}
 				else
 				{
 					writer.WriteLine(field.Type.IsBasic ?
 						$"{field.ExportPropertyName});" :
-						$"{field.ExportPropertyName}.ExportYAML(exporter));");
+						$"{field.ExportPropertyName}.ExportYAML(container));");
 				}
 			}
 			writer.WriteIndent(3).WriteLine("return node;");
@@ -307,10 +307,10 @@ namespace TypeTreeGenerator
 		}
 
 		//private bool IsArray => s_arrayRegex.IsMatch(Name);
-		private bool IsPointer => s_pointeRegex.IsMatch(Name);
+		private bool IsPointer => s_pointerRegex.IsMatch(Name);
 		private bool IsContainsDependencies => Fields.Any(t => t.Type.IsPointer || t.Type.IsContainsDependencies);
 		
 		//private static readonly Regex s_arrayRegex = new Regex(@"[\w\<\>_]\[\]*>");
-		private static readonly Regex s_pointeRegex = new Regex(@"PPtr<[\w\<\>_]*>");
+		private static readonly Regex s_pointerRegex = new Regex(@"PPtr<[\w\<\>_]*>");
 	}
 }

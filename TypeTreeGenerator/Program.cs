@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace TypeTreeGenerator
 {
@@ -25,6 +26,9 @@ namespace TypeTreeGenerator
 					}
 				}
 			}
+
+			Console.WriteLine("Finished");
+			Console.ReadKey();
 		}
 	}
 }
