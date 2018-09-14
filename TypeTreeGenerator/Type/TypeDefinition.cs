@@ -81,9 +81,20 @@ namespace TypeTreeGenerator
 			writer.WriteLine('}');
 		}
 
+		private static bool IsBasicType(string name)
+		{
+			return Enum.TryParse(name, out BaseType _);
+		}
+
+		private static BaseType ToBasicType(string name)
+		{
+			return (BaseType)Enum.Parse(typeof(BaseType), name); ;
+		}
+
+
 		private void ExportUsings(TextWriter writer, TypeDefinition root)
 		{
-			if (Fields.Any(t => t.IsArray) || IsContainsDependencies)
+			if (IsUsingGeneric)
 			{
 				writer.WriteLine("using System.Collections.Generic;");
 			}
@@ -109,13 +120,25 @@ namespace TypeTreeGenerator
 				{
 					writer.Write($"{field.ExportFieldName} = ");
 					writer.WriteLine(field.Type.IsBasic ?
-						$"reader.Read{field.Type.ToBaseType.ToExportNETType()}Array();" :
+						$"reader.Read{field.Type.ToBasic.ToExportNETType()}Array();" :
 						$"reader.ReadArray<{field.TypeExportName}>();");
+				}
+				else if (field.Type.IsMap)
+				{
+					writer.WriteLine($"{field.ExportFieldName} = new {field.TypeExportName}();");
+					writer.WriteIndent(3).WriteLine($"{field.ExportFieldName}.Read(reader);");
+				}
+				else if (field.Type.IsSet)
+				{
+					writer.Write($"{field.ExportFieldName} = ");
+					writer.WriteLine(IsBasicType(field.TypeExportName) ?
+					 $"reader.Read{ToBasicType(field.TypeExportName).ToExportNETType()}Array();" :
+					 $"reader.ReadArray<{field.TypeExportName}>();");
 				}
 				else
 				{
 					writer.WriteLine(field.Type.IsBasic ?
-						$"{field.ExportPropertyName} = reader.Read{field.Type.ToBaseType.ToExportNETType()}();" :
+						$"{field.ExportPropertyName} = reader.Read{field.Type.ToBasic.ToExportNETType()}();" :
 						$"{field.ExportPropertyName}.Read(reader);");
 				}
 
@@ -213,23 +236,38 @@ namespace TypeTreeGenerator
 			bool wrote = false;
 			foreach (FieldDefinition field in Fields)
 			{
-				if (!field.Type.IsBasic)
+				if(field.IsArray || field.Type.IsBasic || field.Type.IsCollection)
 				{
-					if (!field.IsArray)
+					if (!wrote)
 					{
-						continue;
+						writer.WriteLine();
+						wrote = true;
+					}
+
+					if (field.IsArray)
+					{
+						writer.WriteIndent(2).WriteLine($"public IReadOnlyList<{field.TypeExportName}> {field.ExportPropertyName} => {field.ExportFieldName};");
+					}
+					else if (field.Type.IsBasic)
+					{
+						writer.WriteIndent(2).WriteLine($"public {field.TypeExportName} {field.ExportPropertyName} {{ get; private set; }}");
+					}
+					else
+					{
+						if(field.Type.IsMap)
+						{
+							writer.WriteIndent(2).WriteLine($"public IReadOnly{field.TypeExportName} {field.ExportPropertyName} => {field.ExportFieldName};");
+						}
+						else if(field.Type.IsSet)
+						{
+							writer.WriteIndent(2).WriteLine($"public IReadOnlyList<{field.TypeExportName}> {field.ExportPropertyName} => {field.ExportFieldName};");
+						}
+						else
+						{
+							throw new NotImplementedException();
+						}
 					}
 				}
-
-				if (!wrote)
-				{
-					writer.WriteLine();
-					wrote = true;
-				}
-
-				writer.WriteIndent(2).WriteLine(field.IsArray ?
-					$"public IReadOnlyList<{field.TypeExportName}> {field.ExportPropertyName} => {field.ExportFieldName};" :
-					$"public {field.TypeExportName} {field.ExportPropertyName} {{ get; private set; }}");
 			}
 		}
 
@@ -243,6 +281,10 @@ namespace TypeTreeGenerator
 					continue;
 				}
 				if(field.IsArray)
+				{
+					continue;
+				}
+				if(field.Type.IsCollection)
 				{
 					continue;
 				}
@@ -262,55 +304,88 @@ namespace TypeTreeGenerator
 			bool wrote = false;
 			foreach (FieldDefinition field in Fields)
 			{
-				if (!field.IsArray)
+				if (field.IsArray)
 				{
-					continue;
+					if (!wrote)
+					{
+						writer.WriteLine();
+						wrote = true;
+					}
+					writer.WriteIndent(2).WriteLine($"private {field.TypeExportName}[] {field.ExportFieldName};");
 				}
-
-				if (!wrote)
+				else if (field.Type.IsMap)
 				{
-					writer.WriteLine();
-					wrote = true;
+					if (!wrote)
+					{
+						writer.WriteLine();
+						wrote = true;
+					}
+					writer.WriteIndent(2).WriteLine($"private {field.TypeExportName} {field.ExportFieldName};");
 				}
-				writer.WriteIndent(2).WriteLine($"private {field.TypeExportName}[] {field.ExportFieldName};");
+				else if(field.Type.IsSet)
+				{
+					if (!wrote)
+					{
+						writer.WriteLine();
+						wrote = true;
+					}
+					writer.WriteIndent(2).WriteLine($"private {field.TypeExportName}[] {field.ExportFieldName};");
+				}
 			}
 		}
 
-		public bool IsBasic => Enum.TryParse(TypeName, out BaseType _);
+		private string ToExportName(string name)
+		{
+			if (Enum.TryParse(name, out BaseType type))
+			{
+				return type.ToExportType();
+			}
+			if (IsMap)
+			{
+				return name.Replace("map<", "Dictionary<");
+			}
+			if (IsSet)
+			{
+				return name.Substring(4, name.Length - 5);
+			}
+			return name;
+		}
+
+		public bool IsBasic => IsBasicType(Name);
 
 		public string BaseName { get; set; }
 		public string Name { get; set; }
 		public List<FieldDefinition> Fields { get; } = new List<FieldDefinition>();
-		public bool IsInner { get; set; }
+		public bool IsBuiltIn { get; set; }
 
-		public string ExportName => ExportTypeName;
-		public BaseType ToBaseType => (BaseType)Enum.Parse(typeof(BaseType), Name);
+		public string ExportName => ToExportName(Name);
+		public BaseType ToBasic => ToBasicType(Name);
 
-		private string TypeName => /*IsArray ? Fields[0].Type.Name : */Name;
-		private string ExportTypeName
+		private bool IsPointer => s_pointerRegex.IsMatch(Name);
+		private bool IsContainsDependencies => Fields.Any(t => t.Type.IsPointer || t.Type.IsContainsDependencies);
+		private bool IsCollection => IsMap || IsSet;
+		private bool IsMap => Name.StartsWith("map<", StringComparison.Ordinal);
+		private bool IsSet => Name.StartsWith("set<", StringComparison.Ordinal);
+
+		private bool IsUsingGeneric
 		{
 			get
 			{
-				if(Enum.TryParse(TypeName, out BaseType type))
+				foreach(FieldDefinition field in Fields)
 				{
-					//if (IsArray)
+					if (field.IsArray)
 					{
-						//return $"{type.ToExportType()}[]";
+						return true;
 					}
-					//else
+					if (field.Type.IsCollection)
 					{
-						return type.ToExportType();
+						return true;
 					}
 				}
-				return Name;
+				return IsContainsDependencies;
 			}
 		}
-
-		//private bool IsArray => s_arrayRegex.IsMatch(Name);
-		private bool IsPointer => s_pointerRegex.IsMatch(Name);
-		private bool IsContainsDependencies => Fields.Any(t => t.Type.IsPointer || t.Type.IsContainsDependencies);
 		
-		//private static readonly Regex s_arrayRegex = new Regex(@"[\w\<\>_]\[\]*>");
 		private static readonly Regex s_pointerRegex = new Regex(@"PPtr<[\w\<\>_]*>");
 	}
 }

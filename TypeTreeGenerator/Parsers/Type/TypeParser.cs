@@ -171,12 +171,12 @@ namespace TypeTreeGenerator
 			{
 				type = new TypeDefinition();
 				type.Name = typeName;
+				type.IsBuiltIn = GetIsBuiltIn();
 				foreach (TypeParser child in Children)
 				{
 					FieldDefinition field = GenerateField(assembly, child);
 					type.Fields.Add(field);
 				}
-				type.IsInner = GetIsInner();
 
 				assembly.Types.Add(type);
 			}
@@ -205,13 +205,17 @@ namespace TypeTreeGenerator
 			{
 				case "vector":
 				{
-					TypeParser arrayType = GetArrayType();
+					TypeParser arrayType = GetElementType();
 					return arrayType.GetTypeDefinitionName();
-					//return $"{arrayType.GetTypeDefinitionName()}[]";
+				}
+				case "set":
+				{
+					TypeParser setType = GetElementType();
+					return $"set<{setType.GetTypeDefinitionName()}>";
 				}
 				case "map":
 				{
-					TypeParser pair = GetArrayType();
+					TypeParser pair = GetElementType();
 					if(pair.TypeName != "pair")
 					{
 						throw new Exception($"Pair has unsupported type {pair.TypeName}");
@@ -260,7 +264,7 @@ namespace TypeTreeGenerator
 			}
 		}
 
-		private TypeParser GetArrayType()
+		private TypeParser GetElementType()
 		{
 			if (Children.Count != 1)
 			{
@@ -298,23 +302,27 @@ namespace TypeTreeGenerator
 			return data;
 		}
 
-		private bool GetIsInner()
+		private bool GetIsBuiltIn()
 		{
-			if(TypeName == "vector")
+			if (TypeName == "vector")
 			{
 				return true;
 			}
-			if(TypeName == "map")
+			if (TypeName == "set")
 			{
 				return true;
 			}
-			if(TypeName == "pair")
+			if (TypeName == "map")
+			{
+				return true;
+			}
+			if (TypeName == "pair")
 			{
 				return true;
 			}
 			return false;
 		}
-		
+
 		public string TypeName { get; private set; }
 		public string VarName { get; private set; }
 		public int Size { get; private set; }

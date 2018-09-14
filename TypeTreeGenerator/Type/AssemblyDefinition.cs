@@ -36,7 +36,7 @@ namespace TypeTreeGenerator
 				{
 					continue;
 				}
-				if(type.IsInner)
+				if(type.IsBuiltIn)
 				{
 					continue;
 				}
