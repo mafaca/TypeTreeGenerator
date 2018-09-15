@@ -103,7 +103,7 @@ namespace TypeTreeGenerator
 				string subtype = FindReadWord();
 				if(subtype == "int")
 				{
-					TypeName = nameof(BaseType.unsignedint);
+					TypeName = nameof(BasicType.unsignedint);
 				}
 				else
 				{
@@ -163,59 +163,64 @@ namespace TypeTreeGenerator
 			throw new NotSupportedException();
 		}
 
-		public TypeDefinition GenerateType(AssemblyDefinition assembly)
+		public TypeDefinition GenerateType(AssemblyDefinition assembly, string baseName)
 		{
-			string typeName = GetTypeDefinitionName();
-			TypeDefinition type = assembly.FindType(typeName);
-			if(type == null)
+			string name = GetTypeDefinitionName();
+			TypeDefinition type = assembly.FindType(name);
+			if (type == null)
 			{
-				type = new TypeDefinition();
-				type.Name = typeName;
-				type.IsBuiltIn = GetIsBuiltIn();
-				foreach (TypeParser child in Children)
+				FieldDefinition[] fields = new FieldDefinition[Children.Count];
+				for (int i = 0; i < Children.Count; i++)
 				{
+					TypeParser child = Children[i];
 					FieldDefinition field = GenerateField(assembly, child);
-					type.Fields.Add(field);
+					fields[i] = field;
 				}
-
-				assembly.Types.Add(type);
+				TypeDefinition newType = new TypeDefinition(name, baseName, fields);
+				assembly.Types.Add(newType);
+				return newType;
 			}
-			return type;
+			else
+			{
+				return type;
+			}
 		}
 
-		private static FieldDefinition GenerateField(AssemblyDefinition assembly, TypeParser child)
+		private TypeDefinition GenerateType(AssemblyDefinition assembly)
 		{
-			if(child.TypeName == "Array")
-			{
-				return GenerateField(assembly, child.Children[1]);
-			}
+			return GenerateType(assembly, null);
+		}
 
-			TypeDefinition childType = child.GenerateType(assembly);
-			FieldDefinition field = new FieldDefinition();
-			field.Name = child.VarName;
-			field.Type = childType;
-			field.IsArray = child.TypeName == "vector";
-			field.IsAlign = child.MetaFlag.IsAlign();
-			return field;
+		private static FieldDefinition GenerateField(AssemblyDefinition assembly, TypeParser type)
+		{
+			TypeDefinition fieldType = type.GenerateType(assembly);
+			string fieldName = type.IsArray ? fieldType.Fields[1].Name : type.VarName;
+			bool fieldAlign = type.MetaFlag.IsAlign();
+			return new FieldDefinition(fieldType, fieldName, fieldAlign);
 		}
 
 		private string GetTypeDefinitionName()
 		{
 			switch (TypeName)
 			{
+				case "Array":
+				{
+					TypeParser arrayType = GetArrayElement();
+					return $"{arrayType.GetTypeDefinitionName()}[]";
+				}
 				case "vector":
 				{
-					TypeParser arrayType = GetElementType();
-					return arrayType.GetTypeDefinitionName();
+					TypeParser vectorType = GetElement();
+					return $"vector<{vectorType.GetTypeDefinitionName()}>";
 				}
 				case "set":
 				{
-					TypeParser setType = GetElementType();
+					TypeParser setType = GetElement();
 					return $"set<{setType.GetTypeDefinitionName()}>";
 				}
 				case "map":
 				{
-					TypeParser pair = GetElementType();
+					TypeParser pair = GetElement();
 					if(pair.TypeName != "pair")
 					{
 						throw new Exception($"Pair has unsupported type {pair.TypeName}");
@@ -225,17 +230,17 @@ namespace TypeTreeGenerator
 						throw new Exception($"Pair contains {pair.Children.Count} children");
 					}
 
-					TypeParser first = pair.Children[0];
-					if(first.VarName != "first")
+					TypeParser key = pair.Children[0];
+					if(key.VarName != "first")
 					{
-						throw new Exception($"First has unsupported name {first.VarName}");
+						throw new Exception($"First has unsupported name {key.VarName}");
 					}
-					TypeParser second = pair.Children[1];
-					if (second.VarName != "second")
+					TypeParser value = pair.Children[1];
+					if (value.VarName != "second")
 					{
-						throw new Exception($"Second has unsupported name {second.VarName}");
+						throw new Exception($"Second has unsupported name {value.VarName}");
 					}
-					return $"map<{first.GetTypeDefinitionName()}, {second.GetTypeDefinitionName()}>";
+					return $"map<{key.GetTypeDefinitionName()}, {value.GetTypeDefinitionName()}>";
 				}
 				case "pair":
 				{
@@ -247,24 +252,24 @@ namespace TypeTreeGenerator
 					{
 						throw new Exception($"Pair contains {Children.Count} children");
 					}
-					TypeParser first = Children[0];
-					if (first.VarName != "first")
+					TypeParser key = Children[0];
+					if (key.VarName != "first")
 					{
-						throw new Exception($"First has unsupported name {first.VarName}");
+						throw new Exception($"First has unsupported name {key.VarName}");
 					}
-					TypeParser second = Children[1];
-					if (second.VarName != "second")
+					TypeParser value = Children[1];
+					if (value.VarName != "second")
 					{
-						throw new Exception($"Second has unsupported name {second.VarName}");
+						throw new Exception($"Second has unsupported name {value.VarName}");
 					}
-					return $"pair<{first.GetTypeDefinitionName()}, {second.GetTypeDefinitionName()}>";
+					return $"pair<{key.GetTypeDefinitionName()}, {value.GetTypeDefinitionName()}>";
 				}
 				default:
 					return TypeName;
 			}
 		}
 
-		private TypeParser GetElementType()
+		private TypeParser GetElement()
 		{
 			if (Children.Count != 1)
 			{
@@ -284,8 +289,18 @@ namespace TypeTreeGenerator
 				throw new Exception($"Unsupported array's name {array.VarName}");
 			}
 
+			return GetArrayElement(array);
+		}
+
+		private TypeParser GetArrayElement()
+		{
+			return GetArrayElement(this);
+		}
+
+		private TypeParser GetArrayElement(TypeParser array)
+		{
 			TypeParser size = array.Children[0];
-			if(size.TypeName != nameof(BaseType.@int))
+			if (size.TypeName != nameof(BasicType.@int))
 			{
 				throw new Exception($"Unsupported size's type {size.TypeName}");
 			}
@@ -300,27 +315,6 @@ namespace TypeTreeGenerator
 				throw new Exception($"Unsupported data's name {data.VarName}");
 			}
 			return data;
-		}
-
-		private bool GetIsBuiltIn()
-		{
-			if (TypeName == "vector")
-			{
-				return true;
-			}
-			if (TypeName == "set")
-			{
-				return true;
-			}
-			if (TypeName == "map")
-			{
-				return true;
-			}
-			if (TypeName == "pair")
-			{
-				return true;
-			}
-			return false;
 		}
 
 		public string TypeName { get; private set; }

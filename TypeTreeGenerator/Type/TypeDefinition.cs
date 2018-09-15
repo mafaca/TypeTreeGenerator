@@ -2,19 +2,18 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace TypeTreeGenerator
 {
 	public sealed class TypeDefinition
 	{
-		public override string ToString()
+		public TypeDefinition(string name, string baseName, IReadOnlyList<FieldDefinition> fields)
 		{
-			if(Name == null)
-			{
-				return base.ToString();
-			}
-			return Name;
+			Name = FixName(name);
+			BaseName = baseName;
+			Fields = fields;
+
+			ExportName = ToExportName(Name);
 		}
 
 		public void Export(TextWriter writer, TypeDefinition root)
@@ -81,16 +80,14 @@ namespace TypeTreeGenerator
 			writer.WriteLine('}');
 		}
 
-		private static bool IsBasicType(string name)
+		public override string ToString()
 		{
-			return Enum.TryParse(name, out BaseType _);
+			if (Name == null)
+			{
+				return base.ToString();
+			}
+			return Name;
 		}
-
-		private static BaseType ToBasicType(string name)
-		{
-			return (BaseType)Enum.Parse(typeof(BaseType), name); ;
-		}
-
 
 		private void ExportUsings(TextWriter writer, TypeDefinition root)
 		{
@@ -120,7 +117,7 @@ namespace TypeTreeGenerator
 				{
 					writer.Write($"{field.ExportFieldName} = ");
 					writer.WriteLine(field.Type.IsBasic ?
-						$"reader.Read{field.Type.ToBasic.ToExportNETType()}Array();" :
+						$"reader.Read{ToBasicNETType(field.Type.ExportName)}Array();" :
 						$"reader.ReadArray<{field.TypeExportName}>();");
 				}
 				else if (field.Type.IsMap)
@@ -128,17 +125,10 @@ namespace TypeTreeGenerator
 					writer.WriteLine($"{field.ExportFieldName} = new {field.TypeExportName}();");
 					writer.WriteIndent(3).WriteLine($"{field.ExportFieldName}.Read(reader);");
 				}
-				else if (field.Type.IsSet)
-				{
-					writer.Write($"{field.ExportFieldName} = ");
-					writer.WriteLine(IsBasicType(field.TypeExportName) ?
-					 $"reader.Read{ToBasicType(field.TypeExportName).ToExportNETType()}Array();" :
-					 $"reader.ReadArray<{field.TypeExportName}>();");
-				}
 				else
 				{
 					writer.WriteLine(field.Type.IsBasic ?
-						$"{field.ExportPropertyName} = reader.Read{field.Type.ToBasic.ToExportNETType()}();" :
+						$"{field.ExportPropertyName} = reader.Read{ToBasicNETType(field.Type.Name)}();" :
 						$"{field.ExportPropertyName}.Read(reader);");
 				}
 
@@ -322,50 +312,157 @@ namespace TypeTreeGenerator
 					}
 					writer.WriteIndent(2).WriteLine($"private {field.TypeExportName} {field.ExportFieldName};");
 				}
-				else if(field.Type.IsSet)
-				{
-					if (!wrote)
-					{
-						writer.WriteLine();
-						wrote = true;
-					}
-					writer.WriteIndent(2).WriteLine($"private {field.TypeExportName}[] {field.ExportFieldName};");
-				}
 			}
 		}
 
-		private string ToExportName(string name)
+		private static string FixName(string name)
 		{
-			if (Enum.TryParse(name, out BaseType type))
+			if (Enum.TryParse(name, out BasicType type))
 			{
 				return type.ToExportType();
 			}
-			if (IsMap)
+			if (IsArrayType(name))
 			{
-				return name.Replace("map<", "Dictionary<");
+				string element = name.Substring(0, name.Length - 2);
+				string exportElement = FixName(element);
+				return $"{exportElement}[]";
 			}
-			if (IsSet)
+			if (IsVectorType(name))
 			{
-				return name.Substring(4, name.Length - 5);
+				int startIndex = name.IndexOf('<') + 1;
+				string element = name.Substring(startIndex, name.Length - startIndex - 1);
+				string exportElement = FixName(element);
+				return $"vector<{exportElement}>";
+			}
+			if (IsSetType(name))
+			{
+				int startIndex = name.IndexOf('<') + 1;
+				string element = name.Substring(startIndex, name.Length - startIndex - 1);
+				string exportElement = FixName(element);
+				return $"set<{exportElement}>";
+			}
+			if (IsMapType(name))
+			{
+				int startIndex = name.IndexOf('<') + 1;
+				string element = name.Substring(startIndex, name.Length - startIndex - 1);
+				string exportElement = FixName(element);
+				return $"map<{exportElement}>";
 			}
 			return name;
 		}
 
+		private static string ToExportName(string name)
+		{
+			if(IsArrayType(name))
+			{
+				string element = name.Substring(0, name.Length - 2);
+				return ToExportName(element);
+			}
+			if (IsVectorType(name) || IsSetType(name))
+			{
+				int startIndex = name.IndexOf('<') + 1;
+				string element = name.Substring(startIndex, name.Length - startIndex - 1);
+				return ToExportName(element);
+			}
+			if (IsMapType(name))
+			{
+				int startIndex = name.IndexOf('<') + 1;
+				string element = name.Substring(startIndex, name.Length - startIndex - 1);
+				string exportElement = ToExportName(element);
+				return $"Dictionary<{exportElement}>";
+			}
+			return name;
+		}
+
+		private static bool IsBasicType(string name)
+		{
+			switch (name)
+			{
+				case "bool":
+				case "char":
+				case "byte":
+				case "short":
+				case "ushort":
+				case "int":
+				case "uint":
+				case "long":
+				case "ulong":
+				case "float":
+				case "string":
+					return true;
+
+				default:
+					return false;
+			}
+		}
+
+		private static string ToBasicNETType(string name)
+		{
+			switch (name)
+			{
+				case "bool":
+					return "Boolean";
+				case "char":
+					return "Char";
+				case "byte":
+					return "Byte";
+				case "short":
+					return "Int16";
+				case "ushort":
+					return "UInt16";
+				case "int":
+					return "Int32";
+				case "uint":
+					return "UInt32";
+				case "long":
+					return "Int64";
+				case "ulong":
+					return "UInt64";
+				case "float":
+					return "Single";
+				case "string":
+					return "String";
+
+				default:
+					throw new NotSupportedException(name);
+			}
+		}
+
+		private static bool IsArrayType(string name)
+		{
+			return name.EndsWith("[]", StringComparison.Ordinal);
+		}
+
+		private static bool IsVectorType(string name)
+		{
+			return name.StartsWith("vector<", StringComparison.Ordinal);
+		}
+
+		private static bool IsSetType(string name)
+		{
+			return name.StartsWith("set<", StringComparison.Ordinal);
+		}
+
+		private static bool IsMapType(string name)
+		{
+			return name.StartsWith("map<", StringComparison.Ordinal);
+		}
+
+		public string Name { get; }
+		public string BaseName { get; }
+		public IReadOnlyList<FieldDefinition> Fields { get; }
+
+		public string ExportName { get; }
+
 		public bool IsBasic => IsBasicType(Name);
+		public bool IsArray => IsArrayType(Name);
+		public bool IsPointer => Name.StartsWith("PPtr<", StringComparison.Ordinal);
+		public bool IsVector => IsVectorType(Name);
+		public bool IsSet => IsSetType(Name);
+		public bool IsMap => IsMapType(Name);
 
-		public string BaseName { get; set; }
-		public string Name { get; set; }
-		public List<FieldDefinition> Fields { get; } = new List<FieldDefinition>();
-		public bool IsBuiltIn { get; set; }
-
-		public string ExportName => ToExportName(Name);
-		public BaseType ToBasic => ToBasicType(Name);
-
-		private bool IsPointer => s_pointerRegex.IsMatch(Name);
 		private bool IsContainsDependencies => Fields.Any(t => t.Type.IsPointer || t.Type.IsContainsDependencies);
-		private bool IsCollection => IsMap || IsSet;
-		private bool IsMap => Name.StartsWith("map<", StringComparison.Ordinal);
-		private bool IsSet => Name.StartsWith("set<", StringComparison.Ordinal);
+		private bool IsCollection => IsVector || IsSet || IsMap;
 
 		private bool IsUsingGeneric
 		{
@@ -377,7 +474,7 @@ namespace TypeTreeGenerator
 					{
 						return true;
 					}
-					if (field.Type.IsCollection)
+					if (field.Type.IsMap)
 					{
 						return true;
 					}
@@ -385,7 +482,5 @@ namespace TypeTreeGenerator
 				return IsContainsDependencies;
 			}
 		}
-		
-		private static readonly Regex s_pointerRegex = new Regex(@"PPtr<[\w\<\>_]*>");
 	}
 }

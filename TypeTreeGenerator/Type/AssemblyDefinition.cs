@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Text;
+using System;
 
 namespace TypeTreeGenerator
 {
@@ -32,17 +33,12 @@ namespace TypeTreeGenerator
 
 			foreach (TypeDefinition type in Types)
 			{
-				if(type.IsBasic)
-				{
-					continue;
-				}
-				if(type.IsBuiltIn)
+				if(IsSkip(type))
 				{
 					continue;
 				}
 
-				string name = FixFileName(type.Name);
-				
+				string name = FixFileName(type.Name);				
 				string filePath = Path.Combine(folderPath, name + ".cs");
 				using (FileStream file = new FileStream(filePath, FileMode.Create, FileAccess.Write))
 				{
@@ -52,6 +48,35 @@ namespace TypeTreeGenerator
 					}
 				}
 			}
+		}
+
+		private static bool IsSkip(TypeDefinition type)
+		{
+			if (type.IsBasic)
+			{
+				return true;
+			}
+			if(type.IsArray)
+			{
+				return true;
+			}
+			if (type.IsVector)
+			{
+				return true;
+			}
+			if (type.IsSet)
+			{
+				return true;
+			}
+			if (type.IsMap)
+			{
+				return true;
+			}
+			if (type.Name.StartsWith("pair", StringComparison.Ordinal))
+			{
+				return true;
+			}
+			return false;
 		}
 
 		private static string FixFileName(string name)

@@ -45,7 +45,7 @@
   <ItemGroup>
     <Compile Include="Parsers\Type\TypeMetaFlag.cs" />
     <Compile Include="Type\AssemblyDefinition.cs" />
-    <Compile Include="Type\BaseType.cs" />
+    <Compile Include="Type\BasicType.cs" />
     <Compile Include="Parsers\Type\TypeParserComparer.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

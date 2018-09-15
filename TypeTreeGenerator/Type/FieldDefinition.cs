@@ -2,6 +2,13 @@
 {
 	public sealed class FieldDefinition
 	{
+		public FieldDefinition(TypeDefinition type, string name, bool isAlign)
+		{
+			Type = type;
+			Name = name;
+			IsAlign = isAlign;
+		}
+
 		public override string ToString()
 		{
 			if(Type == null)
@@ -80,9 +87,9 @@
 
 		public TypeDefinition Type { get; set; }
 		public string Name { get; set; }
-		public bool IsArray { get; set; }
 		public bool IsAlign { get; set; }
 
+		public bool IsArray => Type.IsArray || Type.IsVector || Type.IsSet;
 		public string TypeExportName => Type.ExportName;
 		public string ExportVariableName => GetVariableName(Name);
 		public string ExportFieldName => GetFieldName(Name);
