@@ -206,9 +206,11 @@ namespace TypeTreeGenerator
 			foreach (FieldDefinition field in Fields)
 			{
 				writer.WriteIndent(3).Write($"node.Add(\"{field.Name}\", ");
-				if (field.IsArray)
+				if(field.IsArray)
 				{
-					writer.WriteLine($"{field.ExportPropertyName}.ExportYAML(container));");
+					writer.WriteLine(IsBasicType(field.Type.ExportName) ?
+						$"{field.ExportPropertyName}.ExportYAML());" :
+						$"{field.ExportPropertyName}.ExportYAML(container));");
 				}
 				else
 				{
@@ -454,7 +456,7 @@ namespace TypeTreeGenerator
 
 		public string ExportName { get; }
 
-		public bool IsBasic => IsBasicType(Name);
+		public bool IsBasic => IsBasicType(ExportName);
 		public bool IsArray => IsArrayType(Name);
 		public bool IsPointer => Name.StartsWith("PPtr<", StringComparison.Ordinal);
 		public bool IsVector => IsVectorType(Name);
