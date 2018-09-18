@@ -162,22 +162,40 @@ namespace TypeTreeGenerator
 
 			foreach (FieldDefinition field in Fields)
 			{
-				if (!field.Type.IsPointer)
+				if (field.Type.IsPointer)
 				{
-					continue;
+					string logFunc = isRoot ? "ToLogString" : $"() => nameof({Name})";
+					if (field.IsArray)
+					{
+						writer.WriteIndent(3).WriteLine($"foreach ({field.TypeExportName} {field.ExportVariableName} in {field.ExportPropertyName})");
+						writer.WriteIndent(3).WriteLine('{');
+						writer.WriteIndent(4).WriteLine($"yield return {field.ExportVariableName}.FetchDependency(file, isLog, {logFunc}, \"{field.Name}\");");
+						writer.WriteIndent(3).WriteLine('}');
+					}
+					else
+					{
+						writer.WriteIndent(3).WriteLine($"yield return {field.ExportPropertyName}.FetchDependency(file, isLog, {logFunc}, \"{field.Name}\");");
+					}
 				}
-
-				string logFunc = isRoot ? "ToLogString" : $"() => nameof({Name})";
-				if (field.IsArray)
+				else if(field.Type.IsContainsDependencies)
 				{
-					writer.WriteIndent(3).WriteLine($"foreach ({field.TypeExportName} {field.ExportVariableName} in {field.ExportPropertyName})");
-					writer.WriteIndent(3).WriteLine('{');
-					writer.WriteIndent(4).WriteLine($"yield return {field.ExportVariableName}.FetchDependency(file, isLog, {logFunc}, \"{field.Name}\");");	
-					writer.WriteIndent(3).WriteLine('}');
-				}
-				else
-				{
-					writer.WriteIndent(3).WriteLine($"yield return {field.ExportPropertyName}.FetchDependency(file, isLog, {logFunc}, \"{field.Name}\");");	
+					if (field.IsArray)
+					{
+						writer.WriteIndent(3).WriteLine($"foreach ({field.TypeExportName} {field.ExportVariableName} in {field.ExportPropertyName})");
+						writer.WriteIndent(3).WriteLine('{');
+						writer.WriteIndent(4).WriteLine($"foreach (Object asset in {field.ExportVariableName}.FetchDependencies(file, isLog))");
+						writer.WriteIndent(4).WriteLine('{');
+						writer.WriteIndent(5).WriteLine($"yield return asset;");
+						writer.WriteIndent(4).WriteLine('}');
+						writer.WriteIndent(3).WriteLine('}');
+					}
+					else
+					{
+						writer.WriteIndent(3).WriteLine($"foreach (Object asset in {field.ExportPropertyName}.FetchDependencies(file, isLog))");
+						writer.WriteIndent(3).WriteLine('{');
+						writer.WriteIndent(4).WriteLine($"yield return asset;");
+						writer.WriteIndent(3).WriteLine('}');
+					}
 				}
 			}
 
@@ -458,7 +476,7 @@ namespace TypeTreeGenerator
 
 		public bool IsBasic => IsBasicType(ExportName);
 		public bool IsArray => IsArrayType(Name);
-		public bool IsPointer => Name.StartsWith("PPtr<", StringComparison.Ordinal);
+		public bool IsPointer => ExportName.StartsWith("PPtr<", StringComparison.Ordinal);
 		public bool IsVector => IsVectorType(Name);
 		public bool IsSet => IsSetType(Name);
 		public bool IsMap => IsMapType(Name);
