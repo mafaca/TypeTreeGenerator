@@ -20,7 +20,7 @@ namespace TypeTreeGenerator
 		{
 			ExportUsings(writer, root);
 
-			writer.WriteLine(this == root ? "namespace UtinyRipper.Classes" : $"namespace UtinyRipper.Classes.{root.Name}s");
+			writer.WriteLine(this == root ? "namespace uTinyRipper.Classes" : $"namespace uTinyRipper.Classes.{root.Name}s");
 			writer.WriteLine('{');
 			if(this == root)
 			{
@@ -95,15 +95,15 @@ namespace TypeTreeGenerator
 			{
 				writer.WriteLine("using System.Collections.Generic;");
 			}
-			writer.WriteLine("using UtinyRipper.AssetExporters;");
+			writer.WriteLine("using uTinyRipper.AssetExporters;");
 			if(this == root)
 			{
-				writer.WriteLine($"using UtinyRipper.Classes.{root.Name}s;");
+				writer.WriteLine($"using uTinyRipper.Classes.{root.Name}s;");
 			}
-			writer.WriteLine("using UtinyRipper.Exporter.YAML;");
+			writer.WriteLine("using uTinyRipper.Exporter.YAML;");
 			if (IsContainsDependencies)
 			{
-				writer.WriteLine("using UtinyRipper.SerializedFiles;");
+				writer.WriteLine("using uTinyRipper.SerializedFiles;");
 			}
 			writer.WriteLine();
 		}
@@ -210,7 +210,6 @@ namespace TypeTreeGenerator
 			{
 				writer.WriteIndent(2).WriteLine("protected override YAMLMappingNode ExportYAMLRoot(IExportContainer container)");
 				writer.WriteIndent(2).WriteLine('{');
-				writer.WriteLine("#warning TODO: values acording to read version (current 2017.3.0f3)");
 				writer.WriteIndent(3).WriteLine("YAMLMappingNode node = base.ExportYAMLRoot(container);");
 			}
 			else
