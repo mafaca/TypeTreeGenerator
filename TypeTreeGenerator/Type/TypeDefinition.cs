@@ -229,6 +229,12 @@ namespace TypeTreeGenerator
 						$"{field.ExportPropertyName}.ExportYAML());" :
 						$"{field.ExportPropertyName}.ExportYAML(container));");
 				}
+				else if(field.Type.IsMap)
+				{
+					writer.WriteLine(IsConsistOfBasic(field.Type.Name) ?
+						$"{field.ExportPropertyName}.ExportYAML());" :
+						$"{field.ExportPropertyName}.ExportYAML(container));");
+				}
 				else
 				{
 					writer.WriteLine(field.Type.IsBasic ?
@@ -334,6 +340,14 @@ namespace TypeTreeGenerator
 			}
 		}
 
+		private static string GetElement(string name, int index)
+		{
+			int startIndex = name.IndexOf('<') + 1;
+			string element = name.Substring(startIndex, name.Length - startIndex - 1);
+			string[] elements = element.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+			return elements[index];
+		}
+
 		private static string FixName(string name)
 		{
 			if (Enum.TryParse(name, out BasicType type))
@@ -364,8 +378,10 @@ namespace TypeTreeGenerator
 			{
 				int startIndex = name.IndexOf('<') + 1;
 				string element = name.Substring(startIndex, name.Length - startIndex - 1);
-				string exportElement = FixName(element);
-				return $"map<{exportElement}>";
+				string[] elements = SplitGeneric(element);
+				string exportElement = FixName(elements[0]);
+				string exportElement2 = FixName(elements[1]);
+				return $"map<{exportElement},{exportElement2}>";
 			}
 			return name;
 		}
@@ -387,10 +403,38 @@ namespace TypeTreeGenerator
 			{
 				int startIndex = name.IndexOf('<') + 1;
 				string element = name.Substring(startIndex, name.Length - startIndex - 1);
-				string exportElement = ToExportName(element);
-				return $"Dictionary<{exportElement}>";
+				string[] elements = SplitGeneric(element);
+				string exportElement = ToExportName(elements[0]);
+				string exportElement2 = ToExportName(elements[1]);
+				return $"Dictionary<{exportElement}, {exportElement2}>";
 			}
 			return name;
+		}
+
+		private static string[] SplitGeneric(string name)
+		{
+			int index = name.IndexOf(',');
+			string left = name.Substring(0, index).Trim();
+			string right = name.Substring(index + 1).Trim();
+			return new [] { left, right };
+		}
+
+		private static bool IsConsistOfBasic(string name)
+		{
+			if(IsBasicType(name))
+			{
+				return true;
+			}
+			if(IsMapType(name))
+			{
+				string element1 = GetElement(name, 0);
+				string element2 = GetElement(name, 1);
+				if (IsBasicType(element1) && IsBasicType(element2))
+				{
+					return true;
+				}
+			}
+			return false;
 		}
 
 		private static bool IsBasicType(string name)

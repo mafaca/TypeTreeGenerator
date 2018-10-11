@@ -1,4 +1,6 @@
-﻿namespace TypeTreeGenerator
+﻿using System;
+
+namespace TypeTreeGenerator
 {
 	public sealed class FieldDefinition
 	{
@@ -21,14 +23,19 @@
 		private static string GetVariableName(string name)
 		{
 			name = name.Replace(" ", string.Empty);
-			if (name.StartsWith("m_"))
+			name = name.Replace(":", "to");
+			if (char.IsDigit(name[0]))
+			{
+				return $"_{name}";
+			}
+			if (name.StartsWith("m_", StringComparison.Ordinal))
 			{
 				name = name.Substring(2);
 			}
 
 			if (!char.IsLower(name[0]))
 			{
-				char firstLetter = char.ToLower(name[0]);
+				char firstLetter = char.ToLowerInvariant(name[0]);
 				string part = name.Substring(1);
 				name = $"{firstLetter}{part}";
 			}
@@ -43,7 +50,12 @@
 		private static string GetPropertyName(string name)
 		{
 			name = name.Replace(" ", string.Empty);
-			if (name.StartsWith("m_"))
+			name = name.Replace(":", "to");
+			if (char.IsDigit(name[0]))
+			{
+				return $"_{name}";
+			}
+			if (name.StartsWith("m_", StringComparison.Ordinal))
 			{
 				name = name.Substring(2);
 			}
@@ -63,9 +75,10 @@
 		private static string GetFieldName(string name)
 		{
 			name = name.Replace(" ", string.Empty);
+			name = name.Replace(":", "to");
 			if (char.IsUpper(name[0]))
 			{
-				char firstLetter = char.ToLower(name[0]);
+				char firstLetter = char.ToLowerInvariant(name[0]);
 				string part = name.Substring(1);
 				return $"m_{firstLetter}{part}";
 			}
@@ -77,7 +90,7 @@
 					return name;
 				}
 
-				char firstLetter = char.ToLower(name[2]);
+				char firstLetter = char.ToLowerInvariant(name[2]);
 				string part = name.Substring(3);
 				return $"m_{firstLetter}{part}";
 			}
