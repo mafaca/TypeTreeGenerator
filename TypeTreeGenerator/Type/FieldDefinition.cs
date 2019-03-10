@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace TypeTreeGenerator
 {
@@ -105,6 +105,7 @@ namespace TypeTreeGenerator
 		public bool IsArray => Type.IsArray || Type.IsVector || Type.IsSet;
 		public string TypeExportName => Type.ExportName;
 		public string ExportVariableName => GetVariableName(Name);
+		public string ExportConstFieldName => $"{ExportPropertyName}Name";
 		public string ExportFieldName => GetFieldName(Name);
 		public string ExportPropertyName => GetPropertyName(Name);
 	}

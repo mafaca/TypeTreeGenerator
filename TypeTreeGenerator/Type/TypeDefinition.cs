@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -40,11 +40,6 @@ namespace TypeTreeGenerator
 
 			writer.WriteIndent(2).WriteLine("/*private static int GetSerializedVersion(Version version)");
 			writer.WriteIndent(2).WriteLine('{');
-			writer.WriteIndent(3).WriteLine("if (Config.IsExportTopmostSerializedVersion)");
-			writer.WriteIndent(3).WriteLine('{');
-			writer.WriteIndent(4).WriteLine("return 2;");
-			writer.WriteIndent(3).WriteLine('}');
-			writer.WriteLine();
 			writer.WriteIndent(3).WriteLine("if (version.IsGreaterEqual())");
 			writer.WriteIndent(3).WriteLine('{');
 			writer.WriteIndent(4).WriteLine("return 2;");
@@ -73,6 +68,7 @@ namespace TypeTreeGenerator
 			ExportYAMLExport(writer, root);
 
 			ExportProperties(writer);
+			ExportConstFields(writer);
 			ExportPublicFields(writer);
 			ExportPrivateFields(writer);
 			
@@ -169,12 +165,12 @@ namespace TypeTreeGenerator
 					{
 						writer.WriteIndent(3).WriteLine($"foreach ({field.TypeExportName} {field.ExportVariableName} in {field.ExportPropertyName})");
 						writer.WriteIndent(3).WriteLine('{');
-						writer.WriteIndent(4).WriteLine($"yield return {field.ExportVariableName}.FetchDependency(file, isLog, {logFunc}, \"{field.Name}\");");
+						writer.WriteIndent(4).WriteLine($"yield return {field.ExportVariableName}.FetchDependency(file, isLog, {logFunc}, {field.ExportConstFieldName});");
 						writer.WriteIndent(3).WriteLine('}');
 					}
 					else
 					{
-						writer.WriteIndent(3).WriteLine($"yield return {field.ExportPropertyName}.FetchDependency(file, isLog, {logFunc}, \"{field.Name}\");");
+						writer.WriteIndent(3).WriteLine($"yield return {field.ExportPropertyName}.FetchDependency(file, isLog, {logFunc}, {field.ExportConstFieldName});");
 					}
 				}
 				else if(field.Type.IsContainsDependencies)
@@ -218,11 +214,11 @@ namespace TypeTreeGenerator
 				writer.WriteIndent(2).WriteLine('{');
 				writer.WriteIndent(3).WriteLine("YAMLMappingNode node = new YAMLMappingNode();");
 			}
-			writer.WriteIndent(3).WriteLine("//node.AddSerializedVersion(GetSerializedVersion(container.Version));");
+			writer.WriteIndent(3).WriteLine("//node.AddSerializedVersion(GetSerializedVersion(container.ExportVersion));");
 
 			foreach (FieldDefinition field in Fields)
 			{
-				writer.WriteIndent(3).Write($"node.Add(\"{field.Name}\", ");
+				writer.WriteIndent(3).Write($"node.Add({field.ExportConstFieldName}, ");
 				if(field.IsArray)
 				{
 					writer.WriteLine(IsBasicType(field.Type.ExportName) ?
@@ -283,6 +279,21 @@ namespace TypeTreeGenerator
 						}
 					}
 				}
+			}
+		}
+
+		private void ExportConstFields(TextWriter writer)
+		{
+			bool wrote = false;
+			foreach (FieldDefinition field in Fields)
+			{
+				if (!wrote)
+				{
+					writer.WriteLine();
+					wrote = true;
+				}
+				writer.WriteIndent(2).WriteLine($"public const string {field.ExportConstFieldName} = \"{field.Name}\";");
+				wrote = true;
 			}
 		}
 
