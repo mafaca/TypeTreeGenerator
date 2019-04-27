@@ -86,6 +86,7 @@ namespace TypeTreeGenerator
 			{
 				name = name.Substring(0, index);
 			}
+			name = name.Replace("*", "Star");
 			return name;
 		}
 

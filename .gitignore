@@ -6,3 +6,5 @@
 packages/
 
 Bins/
+Test/Editor
+Test/Player

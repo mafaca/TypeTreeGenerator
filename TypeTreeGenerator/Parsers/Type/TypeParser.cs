@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -50,6 +50,11 @@ namespace TypeTreeGenerator
 
 			vreader.Parse("Index");
 			Index = vreader.Value;
+
+			FindValidateSymbol(',');
+
+			vreader.Parse("Version");
+			Version = vreader.Value;
 
 			FindValidateSymbol(',');
 
@@ -116,18 +121,15 @@ namespace TypeTreeGenerator
 		{
 			for (int i = 0; i < m_indent; i++)
 			{
-				for (int j = 0; j < 2; j++)
+				char space = m_reader.ReadChar();
+				if (space != '\t')
 				{
-					char space = m_reader.ReadChar();
-					if (space != ' ')
-					{
-						throw CreateException("Invalid indent");
-					}
+					throw CreateException("Invalid indent");
 				}
 			}
 
 			char c = (char)m_reader.PeekChar();
-			if (c == ' ')
+			if (c == '\t')
 			{
 				throw CreateException($"Indend {m_indent} doesn't match");
 			}
@@ -144,17 +146,14 @@ namespace TypeTreeGenerator
 
 			for (int i = 0; i < int.MaxValue; i++)
 			{
-				for (int j = 0; j < 2; j++)
+				char space = m_reader.ReadChar();
+				if (space != '\t')
 				{
-					char space = m_reader.ReadChar();
-					if (space != ' ')
-					{
-						throw CreateException("Invlid intent");
-					}
+					throw CreateException("Invlid intent");
 				}
 
 				char c = (char)m_reader.PeekChar();
-				if(c != ' ')
+				if(c != '\t')
 				{
 					m_reader.BaseStream.Position = position;
 					return i + 1;
@@ -244,10 +243,6 @@ namespace TypeTreeGenerator
 				}
 				case "pair":
 				{
-					if (VarName != "data")
-					{
-						throw new Exception($"Pair has unsupported type {VarName}");
-					}
 					if (Children.Count != 2)
 					{
 						throw new Exception($"Pair contains {Children.Count} children");
@@ -321,6 +316,7 @@ namespace TypeTreeGenerator
 		public string VarName { get; private set; }
 		public int Size { get; private set; }
 		public int Index { get; private set; }
+		public int Version { get; private set; }
 		public bool IsArray { get; private set; }
 		public TypeMetaFlag MetaFlag { get; private set; }
 		public IReadOnlyList<TypeParser> Children => m_children;

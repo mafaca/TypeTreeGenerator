@@ -1,16 +1,58 @@
-// classID{1}: GameObject <- EditorExtension <- Object
-GameObject Base // ByteSize{ffffffff}, Index{0}, IsArray{0}, MetaFlag{8000}
-  vector m_Component // ByteSize{ffffffff}, Index{1}, IsArray{0}, MetaFlag{8041}
-    Array Array // ByteSize{ffffffff}, Index{2}, IsArray{1}, MetaFlag{4041}
-      int size // ByteSize{4}, Index{3}, IsArray{0}, MetaFlag{41}
-      ComponentPair data // ByteSize{c}, Index{4}, IsArray{0}, MetaFlag{41}
-        PPtr<Component> component // ByteSize{c}, Index{5}, IsArray{0}, MetaFlag{41}
-          int m_FileID // ByteSize{4}, Index{6}, IsArray{0}, MetaFlag{41}
-          SInt64 m_PathID // ByteSize{8}, Index{7}, IsArray{0}, MetaFlag{41}
-  unsigned int m_Layer // ByteSize{4}, Index{8}, IsArray{0}, MetaFlag{0}
-  string m_Name // ByteSize{ffffffff}, Index{9}, IsArray{0}, MetaFlag{8000}
-    Array Array // ByteSize{ffffffff}, Index{a}, IsArray{1}, MetaFlag{4001}
-      int size // ByteSize{4}, Index{b}, IsArray{0}, MetaFlag{1}
-      char data // ByteSize{1}, Index{c}, IsArray{0}, MetaFlag{1}
-  UInt16 m_Tag // ByteSize{2}, Index{d}, IsArray{0}, MetaFlag{0}
-  bool m_IsActive // ByteSize{1}, Index{e}, IsArray{0}, MetaFlag{0}
+// classID{20}: Camera <- Behaviour <- Component <- EditorExtension <- Object
+Camera Base // ByteSize{b7}, Index{0}, Version{2}, IsArray{0}, MetaFlag{8000}
+	unsigned int m_ObjectHideFlags // ByteSize{4}, Index{1}, Version{1}, IsArray{0}, MetaFlag{1}
+	PPtr<EditorExtension> m_CorrespondingSourceObject // ByteSize{c}, Index{2}, Version{1}, IsArray{0}, MetaFlag{1}
+		int m_FileID // ByteSize{4}, Index{3}, Version{1}, IsArray{0}, MetaFlag{800001}
+		SInt64 m_PathID // ByteSize{8}, Index{4}, Version{1}, IsArray{0}, MetaFlag{800001}
+	PPtr<PrefabInstance> m_PrefabInstance // ByteSize{c}, Index{5}, Version{1}, IsArray{0}, MetaFlag{1}
+		int m_FileID // ByteSize{4}, Index{6}, Version{1}, IsArray{0}, MetaFlag{800001}
+		SInt64 m_PathID // ByteSize{8}, Index{7}, Version{1}, IsArray{0}, MetaFlag{800001}
+	PPtr<Prefab> m_PrefabAsset // ByteSize{c}, Index{8}, Version{1}, IsArray{0}, MetaFlag{1}
+		int m_FileID // ByteSize{4}, Index{9}, Version{1}, IsArray{0}, MetaFlag{800001}
+		SInt64 m_PathID // ByteSize{8}, Index{a}, Version{1}, IsArray{0}, MetaFlag{800001}
+	PPtr<GameObject> m_GameObject // ByteSize{c}, Index{b}, Version{1}, IsArray{0}, MetaFlag{41}
+		int m_FileID // ByteSize{4}, Index{c}, Version{1}, IsArray{0}, MetaFlag{41}
+		SInt64 m_PathID // ByteSize{8}, Index{d}, Version{1}, IsArray{0}, MetaFlag{41}
+	UInt8 m_Enabled // ByteSize{1}, Index{e}, Version{1}, IsArray{0}, MetaFlag{4101}
+	unsigned int m_ClearFlags // ByteSize{4}, Index{f}, Version{1}, IsArray{0}, MetaFlag{0}
+	ColorRGBA m_BackGroundColor // ByteSize{10}, Index{10}, Version{1}, IsArray{0}, MetaFlag{200000}
+		float r // ByteSize{4}, Index{11}, Version{1}, IsArray{0}, MetaFlag{200001}
+		float g // ByteSize{4}, Index{12}, Version{1}, IsArray{0}, MetaFlag{200001}
+		float b // ByteSize{4}, Index{13}, Version{1}, IsArray{0}, MetaFlag{200001}
+		float a // ByteSize{4}, Index{14}, Version{1}, IsArray{0}, MetaFlag{200001}
+	int m_projectionMatrixMode // ByteSize{4}, Index{15}, Version{1}, IsArray{0}, MetaFlag{0}
+	int m_GateFitMode // ByteSize{4}, Index{16}, Version{1}, IsArray{0}, MetaFlag{0}
+	int m_FOVAxisMode // ByteSize{4}, Index{17}, Version{1}, IsArray{0}, MetaFlag{804000}
+	Vector2f m_SensorSize // ByteSize{8}, Index{18}, Version{1}, IsArray{0}, MetaFlag{200000}
+		float x // ByteSize{4}, Index{19}, Version{1}, IsArray{0}, MetaFlag{200000}
+		float y // ByteSize{4}, Index{1a}, Version{1}, IsArray{0}, MetaFlag{200000}
+	Vector2f m_LensShift // ByteSize{8}, Index{1b}, Version{1}, IsArray{0}, MetaFlag{200000}
+		float x // ByteSize{4}, Index{1c}, Version{1}, IsArray{0}, MetaFlag{200000}
+		float y // ByteSize{4}, Index{1d}, Version{1}, IsArray{0}, MetaFlag{200000}
+	float m_FocalLength // ByteSize{4}, Index{1e}, Version{1}, IsArray{0}, MetaFlag{800000}
+	Rectf m_NormalizedViewPortRect // ByteSize{10}, Index{1f}, Version{2}, IsArray{0}, MetaFlag{0}
+		float x // ByteSize{4}, Index{20}, Version{1}, IsArray{0}, MetaFlag{0}
+		float y // ByteSize{4}, Index{21}, Version{1}, IsArray{0}, MetaFlag{0}
+		float width // ByteSize{4}, Index{22}, Version{1}, IsArray{0}, MetaFlag{0}
+		float height // ByteSize{4}, Index{23}, Version{1}, IsArray{0}, MetaFlag{0}
+	float near clip plane // ByteSize{4}, Index{24}, Version{1}, IsArray{0}, MetaFlag{0}
+	float far clip plane // ByteSize{4}, Index{25}, Version{1}, IsArray{0}, MetaFlag{0}
+	float field of view // ByteSize{4}, Index{26}, Version{1}, IsArray{0}, MetaFlag{800000}
+	bool orthographic // ByteSize{1}, Index{27}, Version{1}, IsArray{0}, MetaFlag{4000}
+	float orthographic size // ByteSize{4}, Index{28}, Version{1}, IsArray{0}, MetaFlag{0}
+	float m_Depth // ByteSize{4}, Index{29}, Version{1}, IsArray{0}, MetaFlag{0}
+	BitField m_CullingMask // ByteSize{4}, Index{2a}, Version{2}, IsArray{0}, MetaFlag{0}
+		unsigned int m_Bits // ByteSize{4}, Index{2b}, Version{1}, IsArray{0}, MetaFlag{400001}
+	int m_RenderingPath // ByteSize{4}, Index{2c}, Version{1}, IsArray{0}, MetaFlag{800000}
+	PPtr<RenderTexture> m_TargetTexture // ByteSize{c}, Index{2d}, Version{1}, IsArray{0}, MetaFlag{0}
+		int m_FileID // ByteSize{4}, Index{2e}, Version{1}, IsArray{0}, MetaFlag{800001}
+		SInt64 m_PathID // ByteSize{8}, Index{2f}, Version{1}, IsArray{0}, MetaFlag{800001}
+	int m_TargetDisplay // ByteSize{4}, Index{30}, Version{1}, IsArray{0}, MetaFlag{800000}
+	int m_TargetEye // ByteSize{4}, Index{31}, Version{1}, IsArray{0}, MetaFlag{0}
+	bool m_HDR // ByteSize{1}, Index{32}, Version{1}, IsArray{0}, MetaFlag{0}
+	bool m_AllowMSAA // ByteSize{1}, Index{33}, Version{1}, IsArray{0}, MetaFlag{0}
+	bool m_AllowDynamicResolution // ByteSize{1}, Index{34}, Version{1}, IsArray{0}, MetaFlag{800000}
+	bool m_ForceIntoRT // ByteSize{1}, Index{35}, Version{1}, IsArray{0}, MetaFlag{0}
+	bool m_OcclusionCulling // ByteSize{1}, Index{36}, Version{1}, IsArray{0}, MetaFlag{4000}
+	float m_StereoConvergence // ByteSize{4}, Index{37}, Version{1}, IsArray{0}, MetaFlag{0}
+	float m_StereoSeparation // ByteSize{4}, Index{38}, Version{1}, IsArray{0}, MetaFlag{0}

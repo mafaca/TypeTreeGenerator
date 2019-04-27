@@ -92,15 +92,15 @@ namespace TypeTreeGenerator
 				writer.WriteLine("using System.Collections.Generic;");
 			}
 			writer.WriteLine("using uTinyRipper.AssetExporters;");
-			if(this == root)
+			if (this == root)
 			{
 				writer.WriteLine($"using uTinyRipper.Classes.{root.Name}s;");
 			}
-			writer.WriteLine("using uTinyRipper.Exporter.YAML;");
 			if (IsContainsDependencies)
 			{
 				writer.WriteLine("using uTinyRipper.SerializedFiles;");
 			}
+			writer.WriteLine("using uTinyRipper.YAML;");
 			writer.WriteLine();
 		}
 
@@ -114,7 +114,7 @@ namespace TypeTreeGenerator
 					writer.Write($"{field.ExportFieldName} = ");
 					writer.WriteLine(field.Type.IsBasic ?
 						$"reader.Read{ToBasicNETType(field.Type.ExportName)}Array();" :
-						$"reader.ReadArray<{field.TypeExportName}>();");
+						$"reader.ReadAssetArray<{field.TypeExportName}>();");
 				}
 				else if (field.Type.IsMap)
 				{
