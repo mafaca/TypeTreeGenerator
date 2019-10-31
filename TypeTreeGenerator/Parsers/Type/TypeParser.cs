@@ -162,7 +162,7 @@ namespace TypeTreeGenerator
 			throw new NotSupportedException();
 		}
 
-		public TypeDefinition GenerateType(AssemblyDefinition assembly, string baseName)
+		public TypeDefinition GenerateType(AssemblyDefinition assembly, string baseName, int version)
 		{
 			string name = GetTypeDefinitionName();
 			TypeDefinition type = assembly.FindType(name);
@@ -175,7 +175,7 @@ namespace TypeTreeGenerator
 					FieldDefinition field = GenerateField(assembly, child);
 					fields[i] = field;
 				}
-				TypeDefinition newType = new TypeDefinition(name, baseName, fields);
+				TypeDefinition newType = new TypeDefinition(name, baseName, version, fields);
 				assembly.Types.Add(newType);
 				return newType;
 			}
@@ -185,14 +185,14 @@ namespace TypeTreeGenerator
 			}
 		}
 
-		private TypeDefinition GenerateType(AssemblyDefinition assembly)
+		private TypeDefinition GenerateType(AssemblyDefinition assembly, int version)
 		{
-			return GenerateType(assembly, null);
+			return GenerateType(assembly, null, version);
 		}
 
 		private static FieldDefinition GenerateField(AssemblyDefinition assembly, TypeParser type)
 		{
-			TypeDefinition fieldType = type.GenerateType(assembly);
+			TypeDefinition fieldType = type.GenerateType(assembly, type.Version);
 			string fieldName = type.IsArray ? fieldType.Fields[1].Name : type.VarName;
 			bool fieldAlign = type.MetaFlag.IsAlign();
 			return new FieldDefinition(fieldType, fieldName, fieldAlign);

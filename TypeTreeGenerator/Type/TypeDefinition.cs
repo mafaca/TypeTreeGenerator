@@ -7,22 +7,23 @@ namespace TypeTreeGenerator
 {
 	public sealed class TypeDefinition
 	{
-		public TypeDefinition(string name, string baseName, IReadOnlyList<FieldDefinition> fields)
+		public TypeDefinition(string name, string baseName, int version, IReadOnlyList<FieldDefinition> fields)
 		{
 			Name = FixName(name);
 			BaseName = baseName;
+			Version = version;
 			Fields = fields;
 
-			ExportName = ToExportName(Name);
+			ExportName = ToExportName(Name, 1);
 		}
 
 		public void Export(TextWriter writer, TypeDefinition root)
 		{
 			ExportUsings(writer, root);
 
-			writer.WriteLine(this == root ? "namespace uTinyRipper.Classes" : $"namespace uTinyRipper.Classes.{root.Name}s");
+			writer.WriteLine(root == this ? "namespace uTinyRipper.Classes" : $"namespace uTinyRipper.Classes.{root.Name}s");
 			writer.WriteLine('{');
-			if(this == root)
+			if (this == root)
 			{
 				writer.WriteIndent(1).WriteLine($"public sealed class {Name} : {BaseName}");
 				writer.WriteIndent(1).WriteLine('{');
@@ -34,21 +35,28 @@ namespace TypeTreeGenerator
 			}
 			else
 			{
-				writer.WriteIndent(1).WriteLine($"public struct {Name} : IAssetReadable, IYAMLExportable");
+				writer.WriteIndent(1).Write($"public struct {Name} : IAsset");
+				writer.WriteLine(IsContainsDependencies ? ", IDependent" : string.Empty);
 				writer.WriteIndent(1).WriteLine('{');
 			}
 
-			writer.WriteIndent(2).WriteLine("/*private static int GetSerializedVersion(Version version)");
-			writer.WriteIndent(2).WriteLine('{');
-			writer.WriteIndent(3).WriteLine("if (version.IsGreaterEqual())");
-			writer.WriteIndent(3).WriteLine('{');
-			writer.WriteIndent(4).WriteLine("return 2;");
-			writer.WriteIndent(3).WriteLine('}');
-			writer.WriteIndent(3).WriteLine("return 1;");
-			writer.WriteIndent(2).WriteLine("}*/");
-			writer.WriteLine();
+			if (Version > 1)
+			{
+				writer.WriteIndent(2).WriteLine("public static int ToSerializedVersion(Version version)");
+				writer.WriteIndent(2).WriteLine('{');
+				for (int i = Version; i > 1; i--)
+				{
+					writer.WriteIndent(3).WriteLine("if (version.IsGreaterEqual())");
+					writer.WriteIndent(3).WriteLine('{');
+					writer.WriteIndent(4).WriteLine($"return {i};");
+					writer.WriteIndent(3).WriteLine('}');
+				}
+				writer.WriteIndent(3).WriteLine("return 1;");
+				writer.WriteIndent(2).WriteLine("}");
+				writer.WriteLine();
+			}
 
-			if(this == root)
+			if (root == this)
 			{
 				writer.WriteIndent(2).WriteLine("public override void Read(AssetReader reader)");
 				writer.WriteIndent(2).WriteLine('{');
@@ -63,15 +71,30 @@ namespace TypeTreeGenerator
 			ExportReading(writer);
 			writer.WriteIndent(2).WriteLine('}');
 			writer.WriteLine();
-			
+
+			if (root == this)
+			{
+				writer.WriteIndent(2).WriteLine("public override void Write(AssetWriter writer)");
+				writer.WriteIndent(2).WriteLine('{');
+				writer.WriteIndent(3).WriteLine("base.Write(writer);");
+				writer.WriteLine();
+			}
+			else
+			{
+				writer.WriteIndent(2).WriteLine("public void Write(AssetWriter writer)");
+				writer.WriteIndent(2).WriteLine('{');
+			}
+			ExportWriting(writer);
+			writer.WriteIndent(2).WriteLine('}');
+			writer.WriteLine();
+
 			ExportFetchDependencies(writer, root);
 			ExportYAMLExport(writer, root);
 
 			ExportProperties(writer);
 			ExportConstFields(writer);
 			ExportPublicFields(writer);
-			ExportPrivateFields(writer);
-			
+
 			writer.WriteIndent(1).WriteLine('}');
 			writer.WriteLine('}');
 		}
@@ -91,15 +114,11 @@ namespace TypeTreeGenerator
 			{
 				writer.WriteLine("using System.Collections.Generic;");
 			}
-			writer.WriteLine("using uTinyRipper.AssetExporters;");
 			if (this == root)
 			{
 				writer.WriteLine($"using uTinyRipper.Classes.{root.Name}s;");
 			}
-			if (IsContainsDependencies)
-			{
-				writer.WriteLine("using uTinyRipper.SerializedFiles;");
-			}
+			writer.WriteLine("using uTinyRipper.Converters;");
 			writer.WriteLine("using uTinyRipper.YAML;");
 			writer.WriteLine();
 		}
@@ -111,15 +130,15 @@ namespace TypeTreeGenerator
 				writer.WriteIndent(3);
 				if (field.IsArray)
 				{
-					writer.Write($"{field.ExportFieldName} = ");
+					writer.Write($"{field.ExportPropertyName} = ");
 					writer.WriteLine(field.Type.IsBasic ?
 						$"reader.Read{ToBasicNETType(field.Type.ExportName)}Array();" :
 						$"reader.ReadAssetArray<{field.TypeExportName}>();");
 				}
 				else if (field.Type.IsMap)
 				{
-					writer.WriteLine($"{field.ExportFieldName} = new {field.TypeExportName}();");
-					writer.WriteIndent(3).WriteLine($"{field.ExportFieldName}.Read(reader);");
+					writer.WriteLine($"{field.ExportPropertyName} = new {field.TypeExportName}();");
+					writer.WriteIndent(3).WriteLine($"{field.ExportPropertyName}.Read(reader);");
 				}
 				else
 				{
@@ -128,9 +147,33 @@ namespace TypeTreeGenerator
 						$"{field.ExportPropertyName}.Read(reader);");
 				}
 
-				if(field.IsAlign)
+				if (field.IsAlign)
 				{
 					writer.WriteIndent(3).WriteLine("reader.AlignStream(AlignType.Align4);");
+					writer.WriteIndent(3).WriteLine();
+				}
+			}
+		}
+
+		private void ExportWriting(TextWriter writer)
+		{
+			foreach (FieldDefinition field in Fields)
+			{
+				writer.WriteIndent(3);
+				if (field.IsArray || field.Type.IsMap)
+				{
+					writer.WriteLine($"{field.ExportPropertyName}.Write(writer);");
+				}
+				else
+				{
+					writer.WriteLine(field.Type.IsBasic ?
+						$"writer.Write({field.ExportPropertyName});" :
+						$"{field.ExportPropertyName}.Write(writer);");
+				}
+
+				if (field.IsAlign)
+				{
+					writer.WriteIndent(3).WriteLine("writer.AlignStream(AlignType.Align4);");
 					writer.WriteIndent(3).WriteLine();
 				}
 			}
@@ -145,11 +188,11 @@ namespace TypeTreeGenerator
 
 			bool isRoot = this == root;
 			string over = isRoot ? "override " : string.Empty;
-			writer.WriteIndent(2).WriteLine($"public {over}IEnumerable<Object> FetchDependencies(ISerializedFile file, bool isLog = false)");
+			writer.WriteIndent(2).WriteLine($"public {over}IEnumerable<PPtr<Object>> FetchDependencies(DependencyContext context)");
 			writer.WriteIndent(2).WriteLine('{');
 			if (isRoot)
 			{
-				writer.WriteIndent(3).WriteLine("foreach(Object asset in base.FetchDependencies(file, isLog))");
+				writer.WriteIndent(3).WriteLine("foreach(PPtr<Object> asset in base.FetchDependencies(context))");
 				writer.WriteIndent(3).WriteLine('{');
 				writer.WriteIndent(4).WriteLine("yield return asset;");
 				writer.WriteIndent(3).WriteLine('}');
@@ -160,38 +203,14 @@ namespace TypeTreeGenerator
 			{
 				if (field.Type.IsPointer)
 				{
-					string logFunc = isRoot ? "ToLogString" : $"() => nameof({Name})";
-					if (field.IsArray)
-					{
-						writer.WriteIndent(3).WriteLine($"foreach ({field.TypeExportName} {field.ExportVariableName} in {field.ExportPropertyName})");
-						writer.WriteIndent(3).WriteLine('{');
-						writer.WriteIndent(4).WriteLine($"yield return {field.ExportVariableName}.FetchDependency(file, isLog, {logFunc}, {field.ExportConstFieldName});");
-						writer.WriteIndent(3).WriteLine('}');
-					}
-					else
-					{
-						writer.WriteIndent(3).WriteLine($"yield return {field.ExportPropertyName}.FetchDependency(file, isLog, {logFunc}, {field.ExportConstFieldName});");
-					}
+					writer.WriteIndent(3).WriteLine($"yield return context.FetchDependency({field.ExportPropertyName}, {field.ExportConstFieldName});");
 				}
-				else if(field.Type.IsContainsDependencies)
+				else if (field.Type.IsContainsDependencies)
 				{
-					if (field.IsArray)
-					{
-						writer.WriteIndent(3).WriteLine($"foreach ({field.TypeExportName} {field.ExportVariableName} in {field.ExportPropertyName})");
-						writer.WriteIndent(3).WriteLine('{');
-						writer.WriteIndent(4).WriteLine($"foreach (Object asset in {field.ExportVariableName}.FetchDependencies(file, isLog))");
-						writer.WriteIndent(4).WriteLine('{');
-						writer.WriteIndent(5).WriteLine($"yield return asset;");
-						writer.WriteIndent(4).WriteLine('}');
-						writer.WriteIndent(3).WriteLine('}');
-					}
-					else
-					{
-						writer.WriteIndent(3).WriteLine($"foreach (Object asset in {field.ExportPropertyName}.FetchDependencies(file, isLog))");
-						writer.WriteIndent(3).WriteLine('{');
-						writer.WriteIndent(4).WriteLine($"yield return asset;");
-						writer.WriteIndent(3).WriteLine('}');
-					}
+					writer.WriteIndent(3).WriteLine($"foreach (PPtr<Object> asset in context.FetchDependencies({field.ExportPropertyName}, {field.ExportConstFieldName}))");
+					writer.WriteIndent(3).WriteLine('{');
+					writer.WriteIndent(4).WriteLine($"yield return asset;");
+					writer.WriteIndent(3).WriteLine('}');
 				}
 			}
 
@@ -202,7 +221,7 @@ namespace TypeTreeGenerator
 
 		private void ExportYAMLExport(TextWriter writer, TypeDefinition root)
 		{
-			if(this == root)
+			if (this == root)
 			{
 				writer.WriteIndent(2).WriteLine("protected override YAMLMappingNode ExportYAMLRoot(IExportContainer container)");
 				writer.WriteIndent(2).WriteLine('{');
@@ -214,18 +233,21 @@ namespace TypeTreeGenerator
 				writer.WriteIndent(2).WriteLine('{');
 				writer.WriteIndent(3).WriteLine("YAMLMappingNode node = new YAMLMappingNode();");
 			}
-			writer.WriteIndent(3).WriteLine("//node.AddSerializedVersion(GetSerializedVersion(container.ExportVersion));");
+			if (Version > 1)
+			{
+				writer.WriteIndent(3).WriteLine("node.AddSerializedVersion(ToSerializedVersion(container.ExportVersion));");
+			}
 
 			foreach (FieldDefinition field in Fields)
 			{
 				writer.WriteIndent(3).Write($"node.Add({field.ExportConstFieldName}, ");
-				if(field.IsArray)
+				if (field.IsArray)
 				{
 					writer.WriteLine(IsBasicType(field.Type.ExportName) ?
 						$"{field.ExportPropertyName}.ExportYAML());" :
 						$"{field.ExportPropertyName}.ExportYAML(container));");
 				}
-				else if(field.Type.IsMap)
+				else if (field.Type.IsMap)
 				{
 					writer.WriteLine(IsConsistOfBasic(field.Type.Name) ?
 						$"{field.ExportPropertyName}.ExportYAML());" :
@@ -247,7 +269,7 @@ namespace TypeTreeGenerator
 			bool wrote = false;
 			foreach (FieldDefinition field in Fields)
 			{
-				if(field.IsArray || field.Type.IsBasic || field.Type.IsCollection)
+				if (field.IsArray || field.Type.IsBasic || field.Type.IsCollection)
 				{
 					if (!wrote)
 					{
@@ -257,21 +279,21 @@ namespace TypeTreeGenerator
 
 					if (field.IsArray)
 					{
-						writer.WriteIndent(2).WriteLine($"public IReadOnlyList<{field.TypeExportName}> {field.ExportPropertyName} => {field.ExportFieldName};");
+						writer.WriteIndent(2).WriteLine($"public {field.TypeExportName}[] {field.ExportPropertyName} {{ get; set; }}");
 					}
 					else if (field.Type.IsBasic)
 					{
-						writer.WriteIndent(2).WriteLine($"public {field.TypeExportName} {field.ExportPropertyName} {{ get; private set; }}");
+						writer.WriteIndent(2).WriteLine($"public {field.TypeExportName} {field.ExportPropertyName} {{ get; set; }}");
 					}
 					else
 					{
-						if(field.Type.IsMap)
+						if (field.Type.IsMap)
 						{
-							writer.WriteIndent(2).WriteLine($"public IReadOnly{field.TypeExportName} {field.ExportPropertyName} => {field.ExportFieldName};");
+							writer.WriteIndent(2).WriteLine($"public {field.TypeExportName} {field.ExportPropertyName} {{ get; set; }}");
 						}
-						else if(field.Type.IsSet)
+						else if (field.Type.IsSet)
 						{
-							writer.WriteIndent(2).WriteLine($"public IReadOnlyList<{field.TypeExportName}> {field.ExportPropertyName} => {field.ExportFieldName};");
+							writer.WriteIndent(2).WriteLine($"public {field.TypeExportName}[] {field.ExportPropertyName} {{ get; set; }}");
 						}
 						else
 						{
@@ -302,15 +324,7 @@ namespace TypeTreeGenerator
 			bool wrote = false;
 			foreach (FieldDefinition field in Fields)
 			{
-				if (field.Type.IsBasic)
-				{
-					continue;
-				}
-				if(field.IsArray)
-				{
-					continue;
-				}
-				if(field.Type.IsCollection)
+				if (field.IsArray || field.Type.IsBasic || field.Type.IsCollection)
 				{
 					continue;
 				}
@@ -322,32 +336,6 @@ namespace TypeTreeGenerator
 				}
 				writer.WriteIndent(2).WriteLine($"public {field.TypeExportName} {field.ExportPropertyName};");
 				wrote = true;
-			}
-		}
-
-		private void ExportPrivateFields(TextWriter writer)
-		{
-			bool wrote = false;
-			foreach (FieldDefinition field in Fields)
-			{
-				if (field.IsArray)
-				{
-					if (!wrote)
-					{
-						writer.WriteLine();
-						wrote = true;
-					}
-					writer.WriteIndent(2).WriteLine($"private {field.TypeExportName}[] {field.ExportFieldName};");
-				}
-				else if (field.Type.IsMap)
-				{
-					if (!wrote)
-					{
-						writer.WriteLine();
-						wrote = true;
-					}
-					writer.WriteIndent(2).WriteLine($"private {field.TypeExportName} {field.ExportFieldName};");
-				}
 			}
 		}
 
@@ -397,26 +385,28 @@ namespace TypeTreeGenerator
 			return name;
 		}
 
-		private static string ToExportName(string name)
+		private static string ToExportName(string name, int depth)
 		{
-			if(IsArrayType(name))
+			if (IsArrayType(name))
 			{
 				string element = name.Substring(0, name.Length - 2);
-				return ToExportName(element);
+				string exportElement = ToExportName(element, depth + 1);
+				return depth == 1 ? exportElement : exportElement + "[]";
 			}
 			if (IsVectorType(name) || IsSetType(name))
 			{
 				int startIndex = name.IndexOf('<') + 1;
 				string element = name.Substring(startIndex, name.Length - startIndex - 1);
-				return ToExportName(element);
+				string exportElement = ToExportName(element, depth + 1);
+				return depth == 1 ? exportElement : exportElement + "[]";
 			}
 			if (IsMapType(name))
 			{
 				int startIndex = name.IndexOf('<') + 1;
 				string element = name.Substring(startIndex, name.Length - startIndex - 1);
 				string[] elements = SplitGeneric(element);
-				string exportElement = ToExportName(elements[0]);
-				string exportElement2 = ToExportName(elements[1]);
+				string exportElement = ToExportName(elements[0], depth + 1);
+				string exportElement2 = ToExportName(elements[1], depth + 1);
 				return $"Dictionary<{exportElement}, {exportElement2}>";
 			}
 			return name;
@@ -427,16 +417,16 @@ namespace TypeTreeGenerator
 			int index = name.IndexOf(',');
 			string left = name.Substring(0, index).Trim();
 			string right = name.Substring(index + 1).Trim();
-			return new [] { left, right };
+			return new[] { left, right };
 		}
 
 		private static bool IsConsistOfBasic(string name)
 		{
-			if(IsBasicType(name))
+			if (IsBasicType(name))
 			{
 				return true;
 			}
-			if(IsMapType(name))
+			if (IsMapType(name))
 			{
 				string element1 = GetElement(name, 0);
 				string element2 = GetElement(name, 1);
@@ -524,6 +514,7 @@ namespace TypeTreeGenerator
 
 		public string Name { get; }
 		public string BaseName { get; }
+		public int Version { get; }
 		public IReadOnlyList<FieldDefinition> Fields { get; }
 
 		public string ExportName { get; }
@@ -542,12 +533,8 @@ namespace TypeTreeGenerator
 		{
 			get
 			{
-				foreach(FieldDefinition field in Fields)
+				foreach (FieldDefinition field in Fields)
 				{
-					if (field.IsArray)
-					{
-						return true;
-					}
 					if (field.Type.IsMap)
 					{
 						return true;

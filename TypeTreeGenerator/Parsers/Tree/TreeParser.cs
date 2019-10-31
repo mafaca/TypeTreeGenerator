@@ -26,7 +26,7 @@ namespace TypeTreeGenerator
 		public AssemblyDefinition GenerateAssembly()
 		{
 			AssemblyDefinition assembly = new AssemblyDefinition();
-			m_type.GenerateType(assembly, m_header.BaseName);
+			m_type.GenerateType(assembly, m_header.BaseName, m_type.Version);
 			return assembly;
 		}
 		
